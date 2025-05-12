@@ -27,24 +27,28 @@ class Config:
     # Celery configuration
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    #SupaBase Connection
+    SUPABASE_HOST = os.environ.get('SUPABASE_HOST')
+    SUPABASE_PORT = os.environ.get('SUPABASE_PORT', '5432')
+    SUPABASE_DATABASE = os.environ.get('SUPABASE_DATABASE')
+    SUPABASE_USER = os.environ.get('SUPABASE_USER') 
+    SUPABASE_PASSWORD = os.environ.get('SUPABASE_PASSWORD')
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        'postgresql://postgres:password@localhost/escort_sms_dev'
+        f'postgresql://{Config.SUPABASE_USER}:{Config.SUPABASE_PASSWORD}@{Config.SUPABASE_HOST}:{Config.SUPABASE_PORT}/{Config.SUPABASE_DATABASE}'
+
 
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
         'postgresql://postgres:password@localhost/escort_sms_test'
 
-class ProductionConfig(Config):
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    VERIFY_TWILIO_SIGNATURE = True
 
-config = {
-    'development': DevelopmentConfig,
-    'testing': TestingConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
-}
+class ProductionConfig(Config):
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        f'postgresql://{Config.SUPABASE_USER}:{Config.SUPABASE_PASSWORD}@{Config.SUPABASE_HOST}:{Config.SUPABASE_PORT}/{Config.SUPABASE_DATABASE}'
+    VERIFY_TWILIO_SIGNATURE = True

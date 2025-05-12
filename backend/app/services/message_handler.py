@@ -1,7 +1,7 @@
 from app.models.message import Message
 from app.models.profile import Profile
 from app.models.client import Client
-from app.models.auto_reply import AutoReply
+from backend.app.models.auto_replies import AutoReply
 from app.models.flagged_message import FlaggedMessage
 from app.services.ai_service import generate_ai_response
 from app.extensions import db, socketio
