@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getCurrentUser, updateUserProfile } from '../api/auth';
 import { useAuth } from '../hooks/useAuth';
-import { User } from '../types';
+import type { User } from '../types';
 
 // Import components
 import ProfileForm from '../components/settings/ProfileForm';
-//import PasswordForm from '../components/settings/PasswordForm';
-//import NotificationSettings from '../components/settings/NotificationSettings';
-//import DeleteAccount from '../components/settings/DeleteAccount';
+import PasswordForm from '../components/settings/PasswordForm';
+import NotificationSettings from '../components/settings/NotificationSettings';
+import DeleteAccount from '../components/settings/DeleteAccount';
 
 // Define tab types
 type TabType = 'profile' | 'password' | 'notifications' | 'delete';

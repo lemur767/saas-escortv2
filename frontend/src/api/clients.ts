@@ -1,5 +1,5 @@
 import axios from './index';
-import { Client } from '../types';
+import type { Client } from '../types';
 
 // Get client information
 export const getClient = async (phoneNumber: string) => {

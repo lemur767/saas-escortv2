@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessHours, DayOfWeek } from '../../types';
+import type { BusinessHours, DayOfWeek } from '../../types';
 import { toast } from 'react-toastify';
 import { setBusinessHours } from '../../api/profiles';
 

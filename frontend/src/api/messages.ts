@@ -1,5 +1,5 @@
 import axios from './index';
-import { Message, ConversationSummary } from '../types';
+import type { Message, ConversationSummary } from '../types';
 
 // Get messages between a profile and a client
 export const getMessages = async (profileId: number, clientPhone: string) => {

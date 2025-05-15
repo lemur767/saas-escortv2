@@ -1,4 +1,4 @@
-import { UsageSummary } from '../../types';
+import type { UsageSummary } from '../../types';
 
 interface StatsSummaryProps {
   usage: UsageSummary;

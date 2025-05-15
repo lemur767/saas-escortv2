@@ -1,5 +1,5 @@
 import axios from './index';
-import { Profile, AutoReply, TextExample, AIModelSettings } from '../types';
+import type { Profile, AutoReply, TextExample, AIModelSettings } from '../types';
 
 // Get all profiles for current user
 export const getProfiles = async () => {

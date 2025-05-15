@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Profile } from '../../types';
+import type { Profile } from '../../types';
 
 interface ProfileCardProps {
   profile: Profile;

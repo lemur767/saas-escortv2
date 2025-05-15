@@ -12,6 +12,10 @@ def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
+    with app.app_context():
+        from app.utils.db_init import init_default_data
+        init_default_data()
+    
     # Initialize extensions
     CORS(app)
     db.init_app(app)
@@ -29,6 +33,8 @@ def create_app(config_name='development'):
     from app.api.webhooks import webhooks_bp
     from app.api.clients import clients_bp
     from app.api.billing import billing_bp
+    from app.api.text_examples import text_examples_bp  
+    from app.api.ai_settings import ai_settings_bp 
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(profiles_bp, url_prefix='/api/profiles')
@@ -36,6 +42,8 @@ def create_app(config_name='development'):
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
     app.register_blueprint(clients_bp, url_prefix='/api/clients')
     app.register_blueprint(billing_bp, url_prefix='/api/billing')
+    app.register_blueprint(text_examples_bp, url_prefix='/api/text_examples')
+    app.register_blueprint(ai_settings_bp, url_prefix='/api/ai_settings')
     
     # JWT error handlers
     @jwt.expired_token_loader

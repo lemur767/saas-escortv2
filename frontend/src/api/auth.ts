@@ -1,5 +1,5 @@
 import axios from './index';
-import { LoginCredentials, RegisterData, User } from '../types';
+import type { LoginCredentials, RegisterData, User } from '../types';
 
 // Login user
 export const loginUser = async (credentials: LoginCredentials) => {

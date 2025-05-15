@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { UIContext } from '../context/UIContext';
 
-export const UseUI = () => {
+export const useUI = () => {
   const context = useContext(UIContext);
   
   if (context === undefined) {

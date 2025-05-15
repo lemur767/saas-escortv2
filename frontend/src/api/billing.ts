@@ -1,5 +1,5 @@
 import axios from './index';
-import { SubscriptionPlan, Subscription, Invoice, UsageRecord, UsageSummary } from '../types';
+import type { SubscriptionPlan, Subscription, Invoice, UsageRecord, UsageSummary } from '../types';
 
 // Get available subscription plans
 export const getSubscriptionPlans = async () => {

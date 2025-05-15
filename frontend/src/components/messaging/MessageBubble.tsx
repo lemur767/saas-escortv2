@@ -1,6 +1,6 @@
 // src/components/messaging/MessageBubble.tsx
 import { format } from 'date-fns';
-import { Message } from '../../types';
+import type { Message } from '../../types';
 
 interface MessageBubbleProps {
   message: Message;

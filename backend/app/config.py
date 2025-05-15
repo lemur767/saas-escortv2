@@ -16,10 +16,21 @@ class Config:
     TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
     VERIFY_TWILIO_SIGNATURE = os.environ.get('VERIFY_TWILIO_SIGNATURE', 'True') == 'True'
     
-    # OpenAI configuration
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-    OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4')
+    #Local LLM
+    # LLM Configuration
+    LLM_ENDPOINT = os.environ.get('LLM_ENDPOINT', 'http://172.105.97.118/api/')
+    LLM_MODEL = os.environ.get('LLM_MODEL', 'dolphin3')
+    LLM_TIMEOUT = int(os.environ.get('LLM_TIMEOUT', '30'))
+    LLM_MAX_TOKENS = int(os.environ.get('LLM_MAX_TOKENS', '150'))
+    LLM_TEMPERATURE = float(os.environ.get('LLM_TEMPERATURE', '0.7'))
     
+    # Message Processing
+    MAX_MESSAGE_LENGTH = int(os.environ.get('MAX_MESSAGE_LENGTH', '1600'))
+    AUTO_REPLY_ENABLED = os.environ.get('AUTO_REPLY_ENABLED', 'True').lower() == 'true'
+    
+    # Webhook Configuration
+    WEBHOOK_TIMEOUT = int(os.environ.get('WEBHOOK_TIMEOUT', '5'))  # Seconds to respond to Twilio
+      
     # Stripe configuration
     STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
     STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
@@ -52,3 +63,10 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         f'postgresql://{Config.SUPABASE_USER}:{Config.SUPABASE_PASSWORD}@{Config.SUPABASE_HOST}:{Config.SUPABASE_PORT}/{Config.SUPABASE_DATABASE}'
     VERIFY_TWILIO_SIGNATURE = True
+    
+config = {
+    'development': DevelopmentConfig,
+    'testing': TestingConfig,
+    'production': ProductionConfig,
+    'default': DevelopmentConfig
+}

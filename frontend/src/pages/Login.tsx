@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../hooks/useAuth';
-import { LoginCredentials } from '../types';
+import type { LoginCredentials } from '../types';
 
 const Login = () => {
   const { login, isAuthenticated, error, clearError } = useAuth();

@@ -1,11 +1,11 @@
 import { useState, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { UseUI } from '../../hooks/UseUI';
+import { useUI } from '../../hooks/useUI'
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
-  const { toggleSidebar } = UseUI();
+  const { toggleSidebar } = useUI();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
   

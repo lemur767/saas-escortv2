@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getAllClients, searchClients, toggleClientBlock, markClientAsRegular } from '../api/clients';
 import { getProfiles } from '../api/profiles';
-import { Client, Profile } from '../types';
+import type { Client, Profile } from '../types';
 
 const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);

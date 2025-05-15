@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../hooks/useAuth';
-import { RegisterData } from '../types';
+import type { RegisterData } from '../types';
 
 const Register = () => {
   const { register: registerUser, isAuthenticated, error, clearError } = useAuth();

@@ -8,7 +8,7 @@ import {
   createCheckoutSession,
   cancelSubscription
 } from '../api/billing';
-import { SubscriptionPlan, Subscription, Invoice, UsageSummary } from '../types';
+import type { SubscriptionPlan, Subscription, Invoice, UsageSummary } from '../types';
 
 const Billing = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);

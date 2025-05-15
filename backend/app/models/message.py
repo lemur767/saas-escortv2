@@ -35,7 +35,7 @@ class Message(db.Model):
         db.session.commit()
         
         # Update profile-client relationship
-        from app.models.client import Client, ProfileClient
+        from backend.app.models.clients import Client, ProfileClient
         client = Client.get_or_create(sender_number)
         profile_client = ProfileClient.get_or_create(profile_id, client.id)
         profile_client.update_last_contact()
@@ -59,7 +59,7 @@ class Message(db.Model):
         db.session.commit()
         
         # Update profile-client relationship
-        from app.models.client import Client, ProfileClient
+        from backend.app.models.clients import Client, ProfileClient
         client = Client.get_or_create(recipient_number)
         profile_client = ProfileClient.get_or_create(profile_id, client.id)
         profile_client.update_last_contact()

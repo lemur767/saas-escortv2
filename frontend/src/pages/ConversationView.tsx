@@ -7,7 +7,7 @@ import { useSocket } from '../hooks/useSocket';
 import MessageBubble from '../components/messaging/MessageBubble';
 import MessageInput from '../components/messaging/MessageInput';
 import ClientInfo from '../components/messaging/ClientInfo';
-import { Message, Client } from '../types';
+import type { Message, Client } from '../types';
 
 const ConversationView = () => {
   const { profileId, clientPhone } = useParams<{ profileId: string; clientPhone: string }>();

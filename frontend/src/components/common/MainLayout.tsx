@@ -1,10 +1,10 @@
 import { Outlet } from 'react-router-dom';
-import { UseUI } from '../../hooks/UseUI';
+import { useUI } from '../../hooks/useUI';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
 const MainLayout: React.FC = () => {
-  const { sidebarOpen } = UseUI();
+  const { sidebarOpen } = useUI();
   
   return (
     <div className="min-h-screen bg-gray-50">

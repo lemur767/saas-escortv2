@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getProfiles } from '../../api/profiles';
-import { UseUI } from '../../hooks/UseUI';
-import { Profile } from '../../types';
+import { useUI } from '../../hooks/useUI';
+import type { Profile } from '../../types/profile';
 
 const Sidebar: React.FC = () => {
-  const { sidebarOpen, setCurrentProfile } = UseUI();
+  const { sidebarOpen, setCurrentProfile } = useUI();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const location = useLocation();
   

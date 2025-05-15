@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useEffect, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '../api';
-import { User, LoginCredentials, RegisterData } from '../types';
+import type { User, LoginCredentials, RegisterData } from '../types';
 
 // Define the AuthState type
 export interface AuthState {

@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { getProfiles } from '../api/profiles';
 import { getMessageStats } from '../api/messages';
 import { getUsageRecords } from '../api/billing';
-import { Profile, UsageRecord } from '../types';
+import type { Profile, UsageRecord } from '../types';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -15,7 +15,7 @@ import {
   Title,
   Tooltip,
   Legend,
-  ChartData,
+  
 } from 'chart.js';
 
 // Register ChartJS components

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { createProfile } from '../../api/profiles';
-import { Profile } from '../../types';
+import type { Profile } from '../../types';
 
 interface NewProfileModalProps {
   onClose: () => void;

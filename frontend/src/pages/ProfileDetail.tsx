@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getProfile, updateProfile, toggleAI } from '../api/profiles';
 import { getConversations } from '../api/messages';
-import { UseUI } from '../hooks/UseUI';
-import { Profile, ConversationSummary } from '../types';
+import { useUI } from '../hooks/useUI';
+import type { Profile, ConversationSummary } from '../types';
 import ConversationList from '../components/messaging/ConversationList';
 //import BusinessHoursSettings from '../components/profile/BusinessHoursSettings';
 //import AISettings from '../components/profile/AISettings';
@@ -17,7 +17,7 @@ const ProfileDetail = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeTab, setActiveTab] = useState<'conversations' | 'settings' | 'ai' | 'auto-replies' | 'training'>('conversations');
   const [isLoading, setIsLoading] = useState(true);
-  const { setCurrentProfile } = UseUI();
+  const { setCurrentProfile } = useUI();
   const navigate = useNavigate();
   
   // Validate param
