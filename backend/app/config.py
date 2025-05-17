@@ -18,7 +18,7 @@ class Config:
     
     #Local LLM
     # LLM Configuration
-    LLM_ENDPOINT = os.environ.get('LLM_ENDPOINT', 'http://172.105.97.118/api/')
+    LLM_ENDPOINT = os.environ.get('LLM_ENDPOINT', 'http://192.46.222.246:11434/api/')
     LLM_MODEL = os.environ.get('LLM_MODEL', 'dolphin3')
     LLM_TIMEOUT = int(os.environ.get('LLM_TIMEOUT', '30'))
     LLM_MAX_TOKENS = int(os.environ.get('LLM_MAX_TOKENS', '150'))
