@@ -12,9 +12,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     #DB setup
-    DB_NAME = os.environ.get('DB_NAME', 'replify')
-    DB_USER = os.environ.get('DB_USER', 'app_user')
-    DB_PASSWORD = os.environ.get('DB_PASSWORD', 'plmnko1423$')
+    DB_NAME = os.environ.get('DB_NAME')
+    DB_USER = os.environ.get('DB_USER')
+    DB_PASS = os.environ.get('DB_PASS')
+   
     
     # Twilio configuration
     TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
@@ -46,23 +47,15 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:/{Config.DB_NAME}'
-
-
-class TestingConfig(Config):
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:5432/{Config.DB_NAME}'
-
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@192.46.222.246:5432/{Config.DB_NAME}'
 
 class ProductionConfig(Config):
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-       
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@192.46.222.246:5432/{Config.DB_NAME}'
     VERIFY_TWILIO_SIGNATURE = True
     
 config = {
     'development': DevelopmentConfig,
-    'testing': TestingConfig,
     'production': ProductionConfig,
     'default': DevelopmentConfig
 }

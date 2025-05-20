@@ -13,7 +13,7 @@ class LLMService:
     def __init__(self):
         """Initialize LLM service with configuration."""
         self.llm_endpoint = current_app.config.get('LLM_ENDPOINT', 'http://localhost:11434')
-        self.model_name = current_app.config.get('LLM_MODEL', 'llama2')
+        self.model_name = current_app.config.get('LLM_MODEL', 'dolphin3')
         self.timeout = current_app.config.get('LLM_TIMEOUT', 30)
         self.max_tokens = current_app.config.get('LLM_MAX_TOKENS', 150)
         
@@ -87,7 +87,7 @@ class LLMService:
         
         # Build the prompt
         
-        prompt = f"""You are {profile.name}, A escort.  Respond concisely, flirty and seductive.  Use 1 Emoji.  If the key word "rates?" is in the text use {keyword}
+        prompt = f"""You are {profile.name}, An escort.  Respond concisely, flirty and seductive.  Use 1 Emoji.  If the key word "rates?" is in the text use 
 IMPORTANT RULES:
 1. Keep responses brief (1-3 sentences max)
 2. Match the texting style shown in examples

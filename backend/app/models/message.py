@@ -19,7 +19,7 @@ class Message(db.Model):
     
     # Relationships
     profile = db.relationship('Profile', back_populates='messages')
-    flagged_message = db.relationship('FlaggedMessage', uselist=False, back_populates='message', cascade='all, delete-orphan')
+    flagged= db.relationship('FlaggedMessage', uselist=False, back_populates='message', cascade='all, delete-orphan')
     
     @classmethod
     def create_incoming(cls, profile_id, sender_number, content):

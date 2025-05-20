@@ -16,7 +16,7 @@ class FlaggedMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    message = db.relationship('Message', back_populates='flagged_message')
+    message = db.relationship('Message', back_populates='flagged')
     reviewer = db.relationship('User')
     
     def to_dict(self):
