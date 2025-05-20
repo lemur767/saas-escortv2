@@ -1,6 +1,6 @@
 from flask import Blueprint, request, current_app, Response
 from app.utils.twilio_helpers import validate_twilio_request
-from app.services.message_handler import handle_incoming_message
+from app.service.message_handler import handle_incoming_message
 from app.models.profile import Profile
 from app.extensions import db, celery
 from celery import uuid

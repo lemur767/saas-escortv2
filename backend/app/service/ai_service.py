@@ -3,7 +3,7 @@ from flask import current_app
 from app.models.ai_model_settings import AIModelSettings
 from app.models.message import Message
 from app.models.text_example import TextExample
-from backend.app.models.clients import Client
+from app.models.client import Client
 
 def generate_ai_response(profile, incoming_message, sender_number):
     """Generate AI response for an incoming message"""

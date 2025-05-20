@@ -11,6 +11,11 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    #DB setup
+    DB_NAME = os.environ.get('DB_NAME', 'replify')
+    DB_USER = os.environ.get('DB_USER', 'app_user')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD', 'plmnko1423$')
+    
     # Twilio configuration
     TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
     TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
@@ -38,30 +43,21 @@ class Config:
     # Celery configuration
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-    #SupaBase Connection
-    SUPABASE_HOST = os.environ.get('SUPABASE_HOST')
-    SUPABASE_PORT = os.environ.get('SUPABASE_PORT', '5432')
-    SUPABASE_DATABASE = os.environ.get('SUPABASE_DATABASE')
-    SUPABASE_USER = os.environ.get('SUPABASE_USER') 
-    SUPABASE_PASSWORD = os.environ.get('SUPABASE_PASSWORD')
-    SUPABASE_URL = os.environ.get('SUPABASE_URL')
-    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
-
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        f'postgresql://{Config.SUPABASE_USER}:{Config.SUPABASE_PASSWORD}@{Config.SUPABASE_HOST}:{Config.SUPABASE_PORT}/{Config.SUPABASE_DATABASE}'
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:/{Config.DB_NAME}'
 
 
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        'postgresql://postgres:password@localhost/escort_sms_test'
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:5432/{Config.DB_NAME}'
 
 
 class ProductionConfig(Config):
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'postgresql://{Config.SUPABASE_USER}:{Config.SUPABASE_PASSWORD}@{Config.SUPABASE_HOST}:{Config.SUPABASE_PORT}/{Config.SUPABASE_DATABASE}'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+       
     VERIFY_TWILIO_SIGNATURE = True
     
 config = {

@@ -1,537 +1,591 @@
-# app/utils/security.py
+"""
+Security utilities for the SMS AI Responder application.
+Provides authentication, encryption, validation, and protection mechanisms.
+"""
+
+import base64
+import hashlib
+import hmac
+import json
+import os
 import re
 import secrets
 import string
+import time
 from datetime import datetime, timedelta
 from functools import wraps
-from collections import defaultdict
-from flask import request, jsonify, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
-import hashlib
-import hmac
-import phonenumbers
-from email_validator import validate_email, EmailNotValidError
 
+import bcrypt
+import jwt
+from flask import current_app, request, g, jsonify
+from werkzeug.local import LocalProxy
 
-# Rate limiting storage (in production, use Redis instead)
-rate_limit_storage = defaultdict(list)
+# Initialize Redis client for token blacklist and rate limiting
+# This will be initialized in init_app
+redis_client = None
 
-
-class SecurityConfig:
-    """Security configuration constants"""
-    # Password requirements
-    MIN_PASSWORD_LENGTH = 8
-    MAX_PASSWORD_LENGTH = 128
-    REQUIRE_UPPERCASE = True
-    REQUIRE_LOWERCASE = True
-    REQUIRE_NUMBERS = True
-    REQUIRE_SPECIAL_CHARS = True
+def init_app(app):
+    """Initialize security module with Flask app context"""
+    global redis_client
     
-    # Rate limiting defaults
-    DEFAULT_RATE_LIMIT = 100  # requests per window
-    DEFAULT_RATE_WINDOW = 3600  # 1 hour in seconds
+    # Initialize Redis if configured
+    if app.config.get('REDIS_URL'):
+        import redis
+        redis_client = redis.from_url(app.config.get('REDIS_URL'))
     
-    # Security patterns
-    SPECIAL_CHARS = "!@#$%^&*()_+-=[]{}|;:,.<>?"
-    
-    # Blocked user agents (bot detection)
-    BLOCKED_USER_AGENTS = [
-        'bot', 'crawler', 'spider', 'scraper', 
-        'curl', 'wget', 'python-requests'
-    ]
+    # Register API key middleware if needed
+    if app.config.get('USE_API_KEY_AUTH', False):
+        @app.before_request
+        def check_api_key():
+            # Skip for routes that don't need API key
+            if request.endpoint and request.endpoint.startswith('api.public'):
+                return
+            
+            # Skip for authentication routes
+            if request.endpoint and request.endpoint.startswith('auth.'):
+                return
+                
+            # Check for API key in headers or query params
+            api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+            if not api_key:
+                return
+                
+            # Validate API key
+            key_info = validate_api_key(api_key)
+            if key_info:
+                g.api_key = api_key
+                g.api_key_info = key_info
 
+
+# Token Management Functions
+
+def generate_token(user_id, expiration=3600, additional_claims=None):
+    """
+    Generate a JWT token for a user.
+    
+    Args:
+        user_id: User identifier
+        expiration: Token lifetime in seconds
+        additional_claims: Dictionary of additional JWT claims
+        
+    Returns:
+        str: JWT token
+    """
+    payload = {
+        'sub': user_id,
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(seconds=expiration),
+        'jti': secrets.token_hex(16)  # Unique token ID for revocation
+    }
+    
+    # Add any additional claims
+    if additional_claims:
+        payload.update(additional_claims)
+    
+    # Create token
+    token = jwt.encode(
+        payload,
+        current_app.config.get('JWT_SECRET_KEY'),
+        algorithm='HS256'
+    )
+    
+    return token
+
+
+def verify_token(token):
+    """
+    Verify a JWT token.
+    
+    Args:
+        token: JWT token to verify
+        
+    Returns:
+        dict: Token payload if valid, None otherwise
+    """
+    try:
+        # Decode and verify token
+        payload = jwt.decode(
+            token,
+            current_app.config.get('JWT_SECRET_KEY'),
+            algorithms=['HS256']
+        )
+        
+        # Check if token has been revoked
+        if redis_client and redis_client.get(f"revoked_token:{payload['jti']}"):
+            return None
+        
+        return payload
+    except jwt.ExpiredSignatureError:
+        # Token has expired
+        return None
+    except jwt.InvalidTokenError:
+        # Token is invalid
+        return None
+
+
+def revoke_token(token):
+    """
+    Revoke a JWT token by adding it to a blacklist.
+    
+    Args:
+        token: JWT token to revoke
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Decode token without verification to get jti
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False}
+        )
+        
+        token_jti = payload.get('jti')
+        if not token_jti:
+            return False
+        
+        # Calculate time until token expiration
+        expiration = datetime.fromtimestamp(payload.get('exp')) - datetime.utcnow()
+        ttl = max(1, int(expiration.total_seconds()))
+        
+        # Add to blacklist with expiration
+        if redis_client:
+            redis_client.setex(f"revoked_token:{token_jti}", ttl, 1)
+            return True
+        else:
+            # Fallback if Redis isn't available
+            # This is less optimal as the revocation won't persist across app restarts
+            if not hasattr(g, 'revoked_tokens'):
+                g.revoked_tokens = set()
+            g.revoked_tokens.add(token_jti)
+            return True
+    except Exception:
+        return False
+
+
+# Password Management Functions
+
+def hash_password(password):
+    """
+    Hash a password securely using bcrypt.
+    
+    Args:
+        password: Plain text password
+        
+    Returns:
+        str: Hashed password
+    """
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+
+def verify_password(password, password_hash):
+    """
+    Verify a password against its hash.
+    
+    Args:
+        password: Plain text password
+        password_hash: Stored password hash
+        
+    Returns:
+        bool: True if password matches, False otherwise
+    """
+    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+
+
+def validate_password_strength(password):
+    """
+    Check if a password meets strength requirements.
+    
+    Args:
+        password: Password to check
+        
+    Returns:
+        tuple: (bool, str) - (is_valid, reason_if_invalid)
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    # Check for at least one lowercase letter
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    # Check for at least one uppercase letter
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    # Check for at least one digit
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one digit"
+    
+    # Check for at least one special character
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "Password must contain at least one special character"
+    
+    return True, ""
+
+
+# API Key Management Functions
+
+def generate_api_key():
+    """
+    Generate a new API key.
+    
+    Returns:
+        str: Newly generated API key
+    """
+    # Generate a random string for the API key
+    # Format: prefix_random_string
+    prefix = "sk"
+    random_part = secrets.token_hex(16)
+    api_key = f"{prefix}_{random_part}"
+    
+    return api_key
+
+
+def validate_api_key(api_key):
+    """
+    Validate an API key.
+    
+    Args:
+        api_key: API key to validate
+        
+    Returns:
+        dict: API key information if valid, None otherwise
+    """
+    from app.models.api_key import APIKey
+    
+    if not api_key:
+        return None
+    
+    # Check against database
+    key_record = APIKey.query.filter_by(key_hash=_hash_api_key(api_key)).first()
+    
+    if not key_record:
+        return None
+    
+    # Check if key is active
+    if not key_record.is_active:
+        return None
+    
+    # Check if key has expired
+    if key_record.expires_at and key_record.expires_at < datetime.utcnow():
+        return None
+    
+    # Return key info
+    return {
+        "id": key_record.id,
+        "user_id": key_record.user_id,
+        "name": key_record.name,
+        "permissions": key_record.permissions,
+        "created_at": key_record.created_at
+    }
+
+
+def revoke_api_key(api_key):
+    """
+    Revoke an API key.
+    
+    Args:
+        api_key: API key to revoke
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    from app.models.api_key import APIKey
+    from app.extensions import db
+    
+    # Find key record
+    key_record = APIKey.query.filter_by(key_hash=_hash_api_key(api_key)).first()
+    
+    if not key_record:
+        return False
+    
+    # Deactivate key
+    key_record.is_active = False
+    key_record.revoked_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        return False
+
+
+def get_api_key_info(api_key):
+    """
+    Get information about an API key.
+    
+    Args:
+        api_key: API key to get information for
+        
+    Returns:
+        dict: API key information if found, None otherwise
+    """
+    # Use validate_api_key to get info
+    return validate_api_key(api_key)
+
+
+def _hash_api_key(api_key):
+    """
+    Hash an API key for secure storage.
+    
+    Args:
+        api_key: API key to hash
+        
+    Returns:
+        str: Hashed API key
+    """
+    return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+def require_api_key(f):
+    """
+    Decorator for routes that require an API key.
+    
+    Args:
+        f: Function to decorate
+        
+    Returns:
+        decorated function
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Get API key from header or query parameter
+        api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+        
+        if not api_key:
+            return jsonify({"error": "API key required"}), 401
+        
+        # Validate API key
+        key_info = validate_api_key(api_key)
+        if not key_info:
+            return jsonify({"error": "Invalid API key"}), 401
+        
+        # Store key info for the view function
+        g.api_key = api_key
+        g.api_key_info = key_info
+        
+        return f(*args, **kwargs)
+    
+    return decorated
+
+
+# Validation Functions
+
+def validate_email_address(email):
+    """
+    Validate an email address format.
+    
+    Args:
+        email: Email address to validate
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    # Simple regex for email validation
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    
+    return bool(re.match(pattern, email))
+
+
+def validate_phone_number(phone_number):
+    """
+    Validate a phone number format (E.164).
+    
+    Args:
+        phone_number: Phone number to validate
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    # Regex for E.164 format (e.g., +12125551234)
+    pattern = r'^\+[1-9]\d{1,14}$'
+    
+    return bool(re.match(pattern, phone_number))
+
+
+def sanitize_input(text):
+    """
+    Sanitize user input to prevent injection attacks.
+    
+    Args:
+        text: Input to sanitize
+        
+    Returns:
+        str: Sanitized input
+    """
+    if not text:
+        return ""
+    
+    # Remove potentially dangerous patterns
+    sanitized = re.sub(r'[<>\'";]', '', text)
+    
+    return sanitized
+
+
+def mask_sensitive_data(data, field_type=None):
+    """
+    Mask sensitive data like credit card numbers, SSNs, etc.
+    
+    Args:
+        data: Data to mask
+        field_type: Type of field (card, ssn, phone, etc.)
+        
+    Returns:
+        str: Masked data
+    """
+    if not data:
+        return ""
+    
+    if field_type == "card":
+        # Mask credit card number (show only last 4 digits)
+        return re.sub(r'\d(?=\d{4})', '*', data)
+    
+    elif field_type == "ssn":
+        # Mask SSN (show only last 4 digits)
+        return re.sub(r'\d(?=\d{4})', '*', data)
+    
+    elif field_type == "phone":
+        # Mask phone number (show only last 4 digits)
+        return re.sub(r'\d(?=\d{4})', '*', data)
+    
+    else:
+        # Default masking for unknown types (mask middle portion)
+        if len(data) <= 4:
+            return data
+        
+        visible_start = min(4, len(data) // 4)
+        visible_end = min(4, len(data) // 4)
+        masked_length = len(data) - visible_start - visible_end
+        
+        return data[:visible_start] + '*' * masked_length + data[-visible_end:]
+
+
+# Utility Functions
 
 def generate_secure_key(length=32):
     """
     Generate a cryptographically secure random key.
     
-    This is essential for creating:
-    - API keys
-    - Session tokens
-    - Verification codes
-    
     Args:
-        length (int): Length of the generated key
+        length: Length of key in bytes
         
     Returns:
-        str: Secure random string
+        str: Base64-encoded key
     """
-    # Use secrets module for cryptographically secure random generation
-    # This is much better than regular random module for security purposes
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
+    random_bytes = os.urandom(length)
+    return base64.urlsafe_b64encode(random_bytes).decode('utf-8')
 
 
-def generate_verification_code(length=6, digits_only=True):
+def generate_verification_code(length=6):
     """
-    Generate verification codes for email/SMS verification.
+    Generate a numeric verification code.
     
     Args:
-        length (int): Length of the code
-        digits_only (bool): Whether to use only digits
+        length: Code length
         
     Returns:
         str: Verification code
     """
-    if digits_only:
-        # Use only digits for SMS/email codes (easier for users to type)
-        return ''.join(secrets.choice(string.digits) for _ in range(length))
-    else:
-        # Use alphanumeric for more complex codes
-        alphabet = string.ascii_uppercase + string.digits
-        return ''.join(secrets.choice(alphabet) for _ in range(length))
-
-
-def validate_password_strength(password):
-    """
-    Validate password meets security requirements.
-    
-    This is crucial for protecting user accounts. We check for:
-    - Minimum length to prevent brute force attacks
-    - Character diversity to increase complexity
-    - Common password patterns to avoid
-    
-    Args:
-        password (str): Password to validate
-        
-    Returns:
-        tuple: (is_valid, error_messages)
-    """
-    errors = []
-    
-    # Check length requirements
-    if len(password) < SecurityConfig.MIN_PASSWORD_LENGTH:
-        errors.append(f"Password must be at least {SecurityConfig.MIN_PASSWORD_LENGTH} characters long")
-    
-    if len(password) > SecurityConfig.MAX_PASSWORD_LENGTH:
-        errors.append(f"Password must be no more than {SecurityConfig.MAX_PASSWORD_LENGTH} characters long")
-    
-    # Check character requirements
-    if SecurityConfig.REQUIRE_UPPERCASE and not re.search(r'[A-Z]', password):
-        errors.append("Password must contain at least one uppercase letter")
-    
-    if SecurityConfig.REQUIRE_LOWERCASE and not re.search(r'[a-z]', password):
-        errors.append("Password must contain at least one lowercase letter")
-    
-    if SecurityConfig.REQUIRE_NUMBERS and not re.search(r'\d', password):
-        errors.append("Password must contain at least one number")
-    
-    if SecurityConfig.REQUIRE_SPECIAL_CHARS and not re.search(f'[{re.escape(SecurityConfig.SPECIAL_CHARS)}]', password):
-        errors.append("Password must contain at least one special character")
-    
-    # Check for common weak patterns
-    if password.lower() in ['password', '12345678', 'qwerty', 'admin']:
-        errors.append("Password is too common. Please choose a more secure password")
-    
-    # Check for sequential characters
-    if re.search(r'(.)\1{2,}', password):  # Three or more repeated characters
-        errors.append("Password should not contain repeated characters")
-    
-    return len(errors) == 0, errors
-
-
-def sanitize_input(input_string, max_length=1000, allow_html=False):
-    """
-    Sanitize user input to prevent injection attacks.
-    
-    This protects against:
-    - XSS (Cross-Site Scripting) attacks
-    - SQL injection attempts
-    - Buffer overflow attempts
-    
-    Args:
-        input_string (str): Input to sanitize
-        max_length (int): Maximum allowed length
-        allow_html (bool): Whether to allow HTML tags
-        
-    Returns:
-        str: Sanitized input
-    """
-    if not input_string:
-        return ""
-    
-    # Limit input length to prevent buffer overflow
-    if len(input_string) > max_length:
-        input_string = input_string[:max_length]
-    
-    # Remove or escape dangerous characters
-    if not allow_html:
-        # Remove HTML tags to prevent XSS
-        input_string = re.sub(r'<[^>]*>', '', input_string)
-        
-        # Escape dangerous characters
-        dangerous_chars = {
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#x27;',
-            '&': '&amp;',
-            '/': '&#x2F;'
-        }
-        
-        for char, escape in dangerous_chars.items():
-            input_string = input_string.replace(char, escape)
-    
-    # Remove potentially dangerous SQL keywords (basic protection)
-    sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER']
-    for keyword in sql_keywords:
-        # Remove these keywords when they appear at word boundaries
-        pattern = r'\b' + re.escape(keyword) + r'\b'
-        input_string = re.sub(pattern, '', input_string, flags=re.IGNORECASE)
-    
-    return input_string.strip()
-
-
-def validate_email_address(email):
-    """
-    Validate email address format and deliverability.
-    
-    Args:
-        email (str): Email address to validate
-        
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    try:
-        # Use email-validator library for comprehensive validation
-        valid = validate_email(email)
-        # The library normalizes the email address
-        return True, valid.email
-    except EmailNotValidError as e:
-        return False, str(e)
-
-
-def validate_phone_number(phone, country_code='US'):
-    """
-    Validate and format phone number.
-    
-    Args:
-        phone (str): Phone number to validate
-        country_code (str): Default country code
-        
-    Returns:
-        tuple: (is_valid, formatted_number, error_message)
-    """
-    try:
-        # Parse the phone number
-        parsed = phonenumbers.parse(phone, country_code)
-        
-        # Check if the number is valid
-        if not phonenumbers.is_valid_number(parsed):
-            return False, None, "Invalid phone number"
-        
-        # Format in international format
-        formatted = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-        return True, formatted, None
-        
-    except phonenumbers.NumberParseException as e:
-        return False, None, f"Invalid phone number: {e}"
-
-
-def rate_limit(max_requests=100, window=3600, key_func=None):
-    """
-    Decorator for rate limiting API endpoints.
-    
-    This prevents abuse by limiting how many requests a user can make.
-    In production, this should use Redis for distributed rate limiting.
-    
-    Args:
-        max_requests (int): Maximum requests allowed
-        window (int): Time window in seconds
-        key_func (callable): Function to generate rate limit key
-        
-    Returns:
-        decorator: Rate limiting decorator
-    """
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Generate rate limit key
-            if key_func:
-                key = key_func()
-            else:
-                # Default: use IP address and user agent
-                key = f"{request.remote_addr}:{request.headers.get('User-Agent', '')}"
-            
-            # Get current time
-            now = datetime.utcnow()
-            
-            # Clean old entries
-            cutoff = now - timedelta(seconds=window)
-            rate_limit_storage[key] = [
-                timestamp for timestamp in rate_limit_storage[key] 
-                if timestamp > cutoff
-            ]
-            
-            # Check if rate limit exceeded
-            if len(rate_limit_storage[key]) >= max_requests:
-                return jsonify({
-                    'error': 'Rate limit exceeded',
-                    'retry_after': window
-                }), 429
-            
-            # Add current request
-            rate_limit_storage[key].append(now)
-            
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
-
-
-def check_suspicious_activity(request_data):
-    """
-    Check for suspicious activity patterns.
-    
-    This helps detect:
-    - Automated attacks
-    - Unusual usage patterns
-    - Potential security threats
-    
-    Args:
-        request_data (dict): Request information
-        
-    Returns:
-        tuple: (is_suspicious, reasons)
-    """
-    reasons = []
-    
-    # Check user agent
-    user_agent = request_data.get('user_agent', '').lower()
-    for blocked_agent in SecurityConfig.BLOCKED_USER_AGENTS:
-        if blocked_agent in user_agent:
-            reasons.append(f"Blocked user agent: {blocked_agent}")
-    
-    # Check for empty or suspicious user agent
-    if not user_agent or len(user_agent) < 10:
-        reasons.append("Missing or suspicious user agent")
-    
-    # Check request frequency (basic check)
-    ip = request_data.get('remote_addr')
-    if ip:
-        recent_requests = rate_limit_storage.get(ip, [])
-        if len(recent_requests) > 10:  # More than 10 requests recently
-            reasons.append("High request frequency")
-    
-    # Check for common attack patterns in parameters
-    params = str(request_data.get('params', ''))
-    attack_patterns = [
-        r'<script[^>]*>',  # XSS attempts
-        r'(union|select|insert|delete|drop)',  # SQL injection
-        r'file://|ftp://|gopher://',  # File inclusion attempts
-        r'javascript:',  # JavaScript injection
-    ]
-    
-    for pattern in attack_patterns:
-        if re.search(pattern, params, re.IGNORECASE):
-            reasons.append(f"Suspicious pattern detected: {pattern}")
-    
-    return len(reasons) > 0, reasons
+    return ''.join(secrets.choice(string.digits) for _ in range(length))
 
 
 def secure_compare(a, b):
     """
-    Compare two strings in a cryptographically secure way.
-    
-    This prevents timing attacks by ensuring comparison
-    takes the same amount of time regardless of where
-    strings differ.
+    Compare two strings in a timing-safe manner.
     
     Args:
-        a (str): First string
-        b (str): Second string
+        a: First string
+        b: Second string
         
     Returns:
-        bool: True if strings are equal
+        bool: True if equal, False otherwise
     """
-    return hmac.compare_digest(str(a), str(b))
+    return hmac.compare_digest(a.encode('utf-8'), b.encode('utf-8'))
 
 
-def hash_sensitive_data(data, salt=None):
+def rate_limit(key, limit, period):
     """
-    Hash sensitive data with optional salt.
-    
-    Uses SHA-256 with salt for non-password data.
-    For passwords, always use werkzeug's password hashing.
+    Implement rate limiting.
     
     Args:
-        data (str): Data to hash
-        salt (str, optional): Salt to use
+        key: Rate limit key (e.g., user_id or IP)
+        limit: Maximum number of requests
+        period: Time period in seconds
         
     Returns:
-        tuple: (hash, salt_used)
+        tuple: (bool, dict) - (is_allowed, rate_limit_info)
     """
-    if salt is None:
-        salt = secrets.token_hex(32)
+    if not redis_client:
+        # No rate limiting if Redis is not available
+        return True, {"limit": limit, "remaining": limit, "reset": int(time.time()) + period}
     
-    # Combine data and salt
-    salted_data = f"{data}{salt}".encode('utf-8')
+    current = int(time.time())
+    reset_time = current - (current % period) + period
+    window_key = f"ratelimit:{key}:{reset_time}"
     
-    # Create hash
-    hash_object = hashlib.sha256(salted_data)
-    hex_dig = hash_object.hexdigest()
+    # Get current count
+    count = redis_client.get(window_key)
+    count = int(count) if count else 0
     
-    return hex_dig, salt
+    # Check if limit exceeded
+    if count >= limit:
+        return False, {
+            "limit": limit,
+            "remaining": 0, 
+            "reset": reset_time,
+            "retry_after": reset_time - current
+        }
+    
+    # Increment count and set expiration
+    pipeline = redis_client.pipeline()
+    pipeline.incr(window_key)
+    pipeline.expire(window_key, period)
+    pipeline.execute()
+    
+    return True, {
+        "limit": limit,
+        "remaining": limit - (count + 1),
+        "reset": reset_time
+    }
 
 
-def verify_recaptcha(recaptcha_response):
+def log_security_event(event_type, details, user_id=None, ip_address=None):
     """
-    Verify reCAPTCHA response from Google.
-    
-    Add this to forms to prevent bots.
+    Log a security-related event.
     
     Args:
-        recaptcha_response (str): reCAPTCHA response token
+        event_type: Type of security event
+        details: Event details
+        user_id: User ID if applicable
+        ip_address: IP address if applicable
         
     Returns:
-        bool: True if verification successful
+        bool: True if logged successfully, False otherwise
     """
-    import requests
+    from app.models.security_log import SecurityLog
+    from app.extensions import db
     
-    secret_key = current_app.config.get('RECAPTCHA_SECRET_KEY')
-    if not secret_key:
-        current_app.logger.warning("reCAPTCHA secret key not configured")
-        return True  # Don't block if not configured
+    # Get IP address if not provided
+    if not ip_address:
+        ip_address = request.remote_addr
+    
+    # Create log entry
+    log_entry = SecurityLog(
+        event_type=event_type,
+        details=json.dumps(details) if isinstance(details, dict) else str(details),
+        user_id=user_id,
+        ip_address=ip_address,
+        timestamp=datetime.utcnow()
+    )
     
     try:
-        response = requests.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            data={
-                'secret': secret_key,
-                'response': recaptcha_response,
-                'remoteip': request.remote_addr
-            },
-            timeout=10
-        )
-        
-        result = response.json()
-        return result.get('success', False)
-        
-    except Exception as e:
-        current_app.logger.error(f"reCAPTCHA verification error: {e}")
-        # In case of error, allow the request (fail open)
+        db.session.add(log_entry)
+        db.session.commit()
         return True
-
-
-def mask_sensitive_data(data, visible_chars=4):
-    """
-    Mask sensitive data for logging or display.
-    
-    Examples:
-    - Phone: +1(555)123-4567 → +1(555)***-***7
-    - Email: user@example.com → us**@ex***le.com
-    - API Key: abc123xyz789 → abc1***x789
-    
-    Args:
-        data (str): Data to mask
-        visible_chars (int): Number of chars to keep visible at each end
-        
-    Returns:
-        str: Masked data
-    """
-    if not data or len(data) <= visible_chars * 2:
-        return '*' * len(data) if data else ''
-    
-    # Calculate mask length
-    mask_length = len(data) - (visible_chars * 2)
-    
-    # Create masked version
-    return f"{data[:visible_chars]}{'*' * mask_length}{data[-visible_chars:]}"
-
-
-# Security middleware functions
-
-def security_headers(response):
-    """
-    Add security headers to all responses.
-    
-    This should be registered as an after_request handler.
-    
-    Args:
-        response: Flask response object
-        
-    Returns:
-        response: Modified response with security headers
-    """
-    # Prevent MIME type sniffing
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    
-    # Prevent clickjacking
-    response.headers['X-Frame-Options'] = 'DENY'
-    
-    # Enable XSS protection
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    
-    # Enforce HTTPS (in production)
-    if current_app.config.get('ENV') == 'production':
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    
-    # Content Security Policy (basic)
-    response.headers['Content-Security-Policy'] = "default-src 'self'"
-    
-    # Hide server information
-    response.headers['Server'] = 'Escort SMS API'
-    
-    return response
-
-
-def log_security_event(event_type, description, user_id=None, ip_address=None, extra_data=None):
-    """
-    Log security-related events for monitoring and analysis.
-    
-    Args:
-        event_type (str): Type of security event
-        description (str): Event description
-        user_id (int, optional): User ID if applicable
-        ip_address (str, optional): IP address
-        extra_data (dict, optional): Additional event data
-    """
-    log_entry = {
-        'timestamp': datetime.utcnow().isoformat(),
-        'event_type': event_type,
-        'description': description,
-        'user_id': user_id,
-        'ip_address': ip_address or request.remote_addr,
-        'user_agent': request.headers.get('User-Agent'),
-        'extra_data': extra_data or {}
-    }
-    
-    # Log to application logger
-    current_app.logger.warning(f"Security Event: {log_entry}")
-    
-    # In production, you might want to send this to a security monitoring service
-    # like Splunk, AWS CloudWatch, or a custom security dashboard
-
-
-# Example usage in your route handlers:
-"""
-# Rate limiting example
-@app.route('/api/auth/login', methods=['POST'])
-@rate_limit(max_requests=5, window=900)  # 5 attempts per 15 minutes
-def login():
-    # Login logic here
-    pass
-
-# Password validation example
-@app.route('/api/auth/register', methods=['POST'])
-def register():
-    data = request.json
-    
-    is_valid, errors = validate_password_strength(data.get('password'))
-    if not is_valid:
-        return jsonify({'errors': errors}), 400
-    
-    # Continue with registration
-    pass
-
-# Input sanitization example
-@app.route('/api/profiles', methods=['POST'])
-def create_profile():
-    data = request.json
-    
-    # Sanitize inputs
-    name = sanitize_input(data.get('name'), max_length=100)
-    description = sanitize_input(data.get('description'), max_length=1000)
-    
-    # Continue with profile creation
-    pass
-"""
+    except Exception:
+        db.session.rollback()
+        return False

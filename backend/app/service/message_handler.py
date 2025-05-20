@@ -3,8 +3,8 @@ from app.models.profile import Profile
 from app.models.client import Client
 from app.models.auto_reply import AutoReply
 from app.models.flagged_message import FlaggedMessage
-from app.services.ai_service import generate_ai_response
-from app.services.llm_service import LLMService
+from app.service.ai_service import generate_ai_response
+from app.service.llm_service import LLMService
 from app.extensions import db, socketio
 from app.utils.twilio_helpers import send_sms
 from datetime import datetime

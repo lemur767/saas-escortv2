@@ -4,32 +4,36 @@ This file imports all service modules for easy access.
 """
 
 # Import all services
-from app.services.message_handler import (
+from app.service.message_handler import (
     handle_incoming_message,
+    format_outgoing_message,
+    get_conversation_history,
     send_response,
     check_flagged_content,
     is_within_business_hours,
-    mark_messages_as_read
+   
 )
 
-from app.services.ai_service import (
+from app.service.ai_service import (
     generate_ai_response,
     get_conversation_history,
     create_system_prompt
 )
 
-from app.services.analytics_service import AnalyticsService
-from app.services.billing_service import BillingService
-from app.services.supabase_service import SupabaseService
+from app.service.analytics_service import AnalyticsService
+from app.service.billing_service import initialize_stripe, create_checkout_session, cancel_subscription, check_subscription_status, create_subscription
+from app.service.supabase_service import SupabaseService
 
 # Service registry for easy access
 SERVICES = {
     'message_handler': {
         'handle_incoming_message': handle_incoming_message,
+        'format_outgoing_message':format_outgoing_message,
+        'get_conversation_history':get_conversation_history,
         'send_response': send_response,
         'check_flagged_content': check_flagged_content,
         'is_within_business_hours': is_within_business_hours,
-        'mark_messages_as_read': mark_messages_as_read
+        
     },
     'ai_service': {
         'generate_ai_response': generate_ai_response,
@@ -37,7 +41,14 @@ SERVICES = {
         'create_system_prompt': create_system_prompt
     },
     'analytics': AnalyticsService,
-    'billing': BillingService,
+    'billing': {
+                'initialize_stripe': initialize_stripe, 
+                'create_checkout_session': create_subscription, 
+                'cancel_subscription':create_subscription, 
+                'check_subscription_status': check_subscription_status, 
+                'create_subscription': create_subscription,   
+     
+    },
     'supabase': SupabaseService
 }
 

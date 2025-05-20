@@ -3,8 +3,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.message import Message
 from app.models.profile import Profile
-from backend.app.models.clients import Client
-from app.services.message_handler import mark_messages_as_read, send_response
+from app.models.client import Client
+from app.service.message_handler import send_response
 from app.extensions import db
 from datetime import datetime, timedelta
 

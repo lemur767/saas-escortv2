@@ -10,7 +10,7 @@ from app.api.auth import auth_bp
 from app.api.profiles import profiles_bp
 from app.api.messages import messages_bp
 from app.api.webhooks import webhooks_bp
-from app.api.clients import clients_bp
+from app.api.client import clients_bp
 from app.api.billing import billing_bp
 from app.api.text_examples import text_examples_bp
 from app.api.ai_settings import ai_settings_bp

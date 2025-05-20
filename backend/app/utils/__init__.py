@@ -231,9 +231,8 @@ def _handle_import_error(module_name, error):
     logger.info(f"{module_name} functionality will not be available")
 
 
-# Export key security configuration (if needed)
-# This allows other parts of the application to access security settings
-from .security import SecurityConfig
+
+
 
 # You can also define package-level configuration here
 UTILS_CONFIG = {

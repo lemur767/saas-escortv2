@@ -1,23 +1,25 @@
 from app.extensions import db
 from datetime import datetime
-import secrets
-
 
 class APIKey(db.Model):
     __tablename__ = 'api_keys'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    key = db.Column(db.String(64), unique=True, nullable=False, default=lambda: secrets.token_hex(32))
-    name = db.Column(db.String(100))
-    permissions = db.Column(db.Text)  # JSON string of permissions
-    last_used_at = db.Column(db.DateTime)
-    expires_at = db.Column(db.DateTime)
+    name = db.Column(db.String(100), nullable=False)
+    key_hash = db.Column(db.String(64), unique=True, nullable=False) # Store only hash of the key
+    permissions = db.Column(db.Text) # JSON string of permissions
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    last_used_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
-    user = db.relationship('User')
+    user = db.relationship('User', backref=db.backref('api_keys', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<APIKey {self.name}>'
     
     def to_dict(self):
         import json
