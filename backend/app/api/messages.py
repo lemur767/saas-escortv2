@@ -72,8 +72,7 @@ def get_conversation(profile_id, client_number):
     messages = query.order_by(Message.timestamp.desc()) \
                    .limit(limit).all()
     
-    # Mark messages as read
-    mark_messages_as_read(profile_id, client_number)
+    
     
     # Reverse to get chronological order
     messages.reverse()

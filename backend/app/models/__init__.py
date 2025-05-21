@@ -2,21 +2,59 @@
 Database models package initialization.
 This file imports all models for easy access throughout the application.
 """
+from app.extensions import db
+# In app/models/__init__.py
+from app.extensions import db
 
-# Import all models
-from app.models.user import User
-from app.models.profile import Profile
-from app.models.message import Message
-from app.models.client import Client, ProfileClient
-from app.models.subscription import SubscriptionPlan, Subscription
-from app.models.payment import PaymentMethod, Invoice
-from app.models.flagged_message import FlaggedMessage
-from app.models.text_example import TextExample
-from app.models.auto_reply import AutoReply, OutOfOfficeReply
-from app.models.ai_model_settings import AIModelSettings
-from app.models.usage import UsageRecord, ActivityLog
-from app.models.banned_words import BannedWord
-from app.models.api_key import APIKey
+# Define a function to import all models
+def import_all_models():
+    # Import models here - only called once by the app
+    from app.models.user import User
+    from app.models.profile import Profile
+    from app.models.client import Client
+    from app.models.profile_client import ProfileClient
+    from app.models.payment import PaymentMethod
+    from app.models.subscription import Subscription
+    from app.models.subscription_payment_method import SubscriptionPaymentMethod
+    from app.models.billing import Invoice, SubscriptionPlan
+    from app.models.message import Message
+    from app.models.flagged_message import FlaggedMessage
+    from app.models.text_example import TextExample
+    from app.models.auto_reply import AutoReply
+    from app.models.ai_model_settings import AIModelSettings
+    from app.models.usage import UsageRecord
+    
+    # Return a dictionary of all models
+    return {
+        'User': User,
+        'Profile': Profile,
+        'Client': Client,
+        'ProfileClient': ProfileClient,
+        'SubscriptionPlan': SubscriptionPlan,
+        'PaymentMethod': PaymentMethod,
+        'Subscription': Subscription,
+        'SubscriptionPaymentMethod': SubscriptionPaymentMethod,
+        'Invoice': Invoice,
+        'Message': Message,
+        'FlaggedMessage': FlaggedMessage,
+        'TextExample': TextExample,
+        'AutoReply': AutoReply,
+        'AIModelSettings': AIModelSettings,
+        'UsageRecord': UsageRecord
+    }
+
+# Create a variable for import from other modules
+models = None
+
+def init_models():
+    """Initialize models once at application startup"""
+    global models
+    if models is None:
+        models = import_all_models()
+    return models
+
+from sqlalchemy.orm import configure_mappers
+configure_mappers()
 
 # List of all model classes for easy iteration
 __all__ = [

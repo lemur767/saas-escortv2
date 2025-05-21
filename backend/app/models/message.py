@@ -4,6 +4,7 @@ import json
 
 class Message(db.Model):
     __tablename__ = 'messages'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False)
@@ -19,8 +20,34 @@ class Message(db.Model):
     
     # Relationships
     profile = db.relationship('Profile', back_populates='messages')
-    flagged= db.relationship('FlaggedMessage', uselist=False, back_populates='message', cascade='all, delete-orphan')
+  
+    flagged_message = db.relationship(
+        'FlaggedMessage',
+        foreign_keys='FlaggedMessage.message_id',
+        uselist=False,
+        backref=db.backref('message', lazy='joined')
+    )
     
+    def is_flagged(self):
+        """Check if this message has been flagged"""
+        return self.flagged_message is not None
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'is_incoming': self.is_incoming,
+            'sender_number': self.sender_number,
+            'profile_id': self.profile_id,
+            'ai_generated': self.ai_generated,
+            'is_read': self.is_read,
+            'twilio_sid': self.twilio_sid,
+            'send_status': self.send_status,
+            'send_error': self.send_error,
+            'timestamp': self.timestamp.isoformat(),
+            'created_at': self.created_at.isoformat(),
+            'is_flagged': self.is_flagged()
+        }
     @classmethod
     def create_incoming(cls, profile_id, sender_number, content):
         """Create an incoming message"""
@@ -35,7 +62,7 @@ class Message(db.Model):
         db.session.commit()
         
         # Update profile-client relationship
-        from backend.app.models.clients import Client, ProfileClient
+        from app.models.client import Client, ProfileClient
         client = Client.get_or_create(sender_number)
         profile_client = ProfileClient.get_or_create(profile_id, client.id)
         profile_client.update_last_contact()
@@ -59,7 +86,7 @@ class Message(db.Model):
         db.session.commit()
         
         # Update profile-client relationship
-        from backend.app.models.clients import Client, ProfileClient
+        from app.models.client import Client, ProfileClient
         client = Client.get_or_create(recipient_number)
         profile_client = ProfileClient.get_or_create(profile_id, client.id)
         profile_client.update_last_contact()
@@ -147,39 +174,3 @@ class Message(db.Model):
         return result
 
 
-class FlaggedMessage(db.Model):
-    __tablename__ = 'flagged_messages'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    message_id = db.Column(db.Integer, db.ForeignKey('messages.id', ondelete='CASCADE'), nullable=False)
-    reasons = db.Column(db.Text, nullable=False)  # JSON array of reasons
-    is_reviewed = db.Column(db.Boolean, default=False)
-    reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    review_notes = db.Column(db.Text)
-    review_date = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    message = db.relationship('Message', back_populates='flagged_message')
-    reviewer = db.relationship('User')
-    
-    def mark_reviewed(self, user_id, notes=None, approved=False):
-        """Mark message as reviewed"""
-        self.is_reviewed = True
-        self.reviewed_by = user_id
-        self.review_notes = notes
-        self.review_date = datetime.utcnow()
-        db.session.commit()
-    
-    def to_dict(self):
-        """Convert flagged message to dictionary"""
-        return {
-            'id': self.id,
-            'message': self.message.to_dict(),
-            'reasons': json.loads(self.reasons),
-            'is_reviewed': self.is_reviewed,
-            'reviewed_by': self.reviewed_by,
-            'review_notes': self.review_notes,
-            'review_date': self.review_date.isoformat() if self.review_date else None,
-            'created_at': self.created_at.isoformat()
-        }

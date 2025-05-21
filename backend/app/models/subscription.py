@@ -1,100 +1,106 @@
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
-
-class SubscriptionPlan(db.Model):
-    __tablename__ = 'subscription_plans'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    profile_limit = db.Column(db.Integer, nullable=False)
-    ai_responses_limit = db.Column(db.Integer, nullable=False)
-    message_history_days = db.Column(db.Integer, nullable=False)
-    features = db.Column(db.Text, nullable=False)  # JSON array of features
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    subscriptions = db.relationship('Subscription', back_populates='plan')
-    
-    def __init__(self, **kwargs):
-        if 'features' in kwargs and isinstance(kwargs['features'], list):
-            kwargs['features'] = json.dumps(kwargs['features'])
-        super(SubscriptionPlan, self).__init__(**kwargs)
-    
-    @property
-    def features_list(self):
-        """Return features as list"""
-        if self.features:
-            return json.loads(self.features)
-        return []
-    
-    def to_dict(self):
-        """Convert plan to dictionary"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'price': float(self.price),
-            'profile_limit': self.profile_limit,
-            'ai_responses_limit': self.ai_responses_limit,
-            'message_history_days': self.message_history_days,
-            'features': self.features_list,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
-        }
-
 
 class Subscription(db.Model):
     __tablename__ = 'subscriptions'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     plan_id = db.Column(db.Integer, db.ForeignKey('subscription_plans.id'), nullable=False)
-    status = db.Column(db.String(20), nullable=False)  # 'active', 'canceled', 'past_due'
-    stripe_customer_id = db.Column(db.String(100))
     stripe_subscription_id = db.Column(db.String(100))
-    start_date = db.Column(db.DateTime, nullable=False)
-    end_date = db.Column(db.DateTime, nullable=False)
-    trial_end_date = db.Column(db.DateTime)
-    ai_responses_used = db.Column(db.Integer, default=0)
-    cancellation_date = db.Column(db.DateTime)
-    cancellation_reason = db.Column(db.Text)
+    stripe_customer_id = db.Column(db.String(100))
+    payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_methods.id'))
+    
+    start_date = db.Column(db.DateTime, default=datetime.utcnow)
+    end_date = db.Column(db.DateTime)
+    renewal_date = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)
+    payment_status = db.Column(db.String(20), default='active')  # active, past_due, failed, canceled
+    
+    auto_renew = db.Column(db.Boolean, default=True)
+    subscription_metadata = db.Column(db.Text)  # JSON field for additional data
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     user = db.relationship('User', back_populates='subscriptions')
-    plan = db.relationship('SubscriptionPlan', back_populates='subscriptions')
-    invoices = db.relationship('Invoice', back_populates='subscription')
-    usage_records = db.relationship('UsageRecord', back_populates='subscription', cascade='all, delete-orphan')
+    plan = db.relationship('SubscriptionPlan')
     
-    def increment_ai_responses(self, count=1):
-        """Increment AI responses used count"""
-        self.ai_responses_used += count
-        db.session.commit()
+    # Singular relationship to the primary payment method
+    payment_method = db.relationship('PaymentMethod', foreign_keys=[payment_method_id])
     
-    def is_limit_reached(self):
-        """Check if AI response limit is reached"""
-        return self.ai_responses_used >= self.plan.ai_responses_limit
+    # Plural relationship to all payment methods associated with this subscription
+    # This might be useful if you want to track all payment methods ever used
+    payment_methods = db.relationship(
+        'PaymentMethod',
+        secondary='subscription_payment_methods',
+        backref=db.backref('subscriptions', lazy='dynamic'),
+        lazy='dynamic'
+    )
     
-    def get_usage_percentage(self):
-        """Get percentage of AI responses used"""
-        if self.plan.ai_responses_limit == 0:
-            return 0
-        return min(100, int((self.ai_responses_used / self.plan.ai_responses_limit) * 100))
+    invoices = db.relationship('Invoice', back_populates='subscription', lazy='dynamic')
+    
+    def set_metadata(self, metadata_dict):
+        self.subscription_metadata = json.dumps(metadata_dict)
+    
+    def get_metadata(self):
+        if not self.subscription_metadata:
+            return {}
+        return json.loads(self.subscription_metadata)
+    
+    def get_current_period_start(self):
+        """Get the start date of the current billing period"""
+        # If we have a stored renewal date, use one period before that
+        if self.renewal_date:
+            if self.plan.billing_cycle == 'monthly':
+                return self.renewal_date - timedelta(days=30)
+            elif self.plan.billing_cycle == 'yearly':
+                return self.renewal_date - timedelta(days=365)
+            else:
+                return self.start_date
+        
+        # Otherwise, use the subscription start date
+        return self.start_date
+    
+    def get_current_period_end(self):
+        """Get the end date of the current billing period"""
+        # If we have a stored renewal date, use that
+        if self.renewal_date:
+            return self.renewal_date
+        
+        # Otherwise, calculate based on start date and billing cycle
+        if self.plan.billing_cycle == 'monthly':
+            return self.start_date + timedelta(days=30)
+        elif self.plan.billing_cycle == 'yearly':
+            return self.start_date + timedelta(days=365)
+        else:
+            # Default to 30 days for unknown billing cycles
+            return self.start_date + timedelta(days=30)
     
     def to_dict(self):
-        """Convert subscription to dictionary"""
         return {
             'id': self.id,
-            'plan': self.plan.to_dict(),
-            'status': self.status,
-            'start_date': self.start_date.isoformat(),
-            'end_date': self.end_date.isoformat(),
-            'trial_end_date': self.trial_end_date.isoformat() if self.trial_end_date else None,
-            'ai_responses_used': self.ai_responses_used,
-            'usage_percentage': self.get_usage_percentage(),
+            'user_id': self.user_id,
+            'plan_id': self.plan_id,
+            'plan': self.plan.to_dict() if self.plan else None,
+            'stripe_subscription_id': self.stripe_subscription_id,
+            'stripe_customer_id': self.stripe_customer_id,
+            'payment_method_id': self.payment_method_id,
+            'payment_method': self.payment_method.to_dict() if self.payment_method else None,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'renewal_date': self.renewal_date.isoformat() if self.renewal_date else None,
+            'is_active': self.is_active,
+            'payment_status': self.payment_status,
+            'auto_renew': self.auto_renew,
+            'subscription_metadata': self.get_metadata(),
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'updated_at': self.updated_at.isoformat(),
+            'current_period': {
+                'start': self.get_current_period_start().isoformat(),
+                'end': self.get_current_period_end().isoformat()
+            }
         }

@@ -1,6 +1,6 @@
 from app.extensions import db
 from datetime import datetime
-
+import json
 
 class FlaggedMessage(db.Model):
     __tablename__ = 'flagged_messages'
@@ -15,20 +15,31 @@ class FlaggedMessage(db.Model):
     reviewed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationships
-    message = db.relationship('Message', back_populates='flagged')
+   
+   
+ 
     reviewer = db.relationship('User')
     
+    def get_reasons(self):
+        if not self.reasons:
+            return []
+        return json.loads(self.reasons)
+    
+    def set_reasons(self, reasons_list):
+        self.reasons = json.dumps(reasons_list)
+    
     def to_dict(self):
-        import json
+        message_obj = self.message  # This uses the property
         
         return {
             'id': self.id,
             'message_id': self.message_id,
-            'reasons': json.loads(self.reasons) if self.reasons else [],
+            'message_content': message_obj.content if message_obj else None,
+            'reasons': self.get_reasons(),
             'is_reviewed': self.is_reviewed,
+            'reviewer_id': self.reviewer_id,
             'review_notes': self.review_notes,
-            'reviewed_by': self.reviewed_by,
-            'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
-            'created_at': self.created_at.isoformat()
+            'review_date': self.review_date.isoformat() if self.review_date else None,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
         }

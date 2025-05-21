@@ -5,6 +5,10 @@ from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
+
+
+# Clear the SQLAlchemy registry to prevent duplicate table errors during development
+
 from app.config import config
 from app.extensions import db, migrate, jwt, socketio, celery
 
@@ -13,6 +17,21 @@ def create_app(config_name='development'):
     app.config.from_object(config[config_name])
     
  
+    
+    # Initialize extensions
+    db.init_app(app)
+    
+    with app.app_context():
+        # Import all models from the central location
+        from app.models import init_models
+        init_models() 
+        # Force SQLAlchemy to configure all mappers
+        from sqlalchemy.orm import configure_mappers
+        configure_mappers()
+    
+   
+    
+  
     
     # Initialize extensions
     CORS(app)

@@ -4,6 +4,7 @@ import json
 
 class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
@@ -40,6 +41,7 @@ class ActivityLog(db.Model):
 
 class APIKey(db.Model):
     __tablename__ = 'api_keys'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -84,6 +86,7 @@ class APIKey(db.Model):
 
 class NotificationSetting(db.Model):
     __tablename__ = 'notification_settings'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -131,6 +134,7 @@ class NotificationSetting(db.Model):
 
 class NotificationLog(db.Model):
     __tablename__ = 'notification_logs'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)

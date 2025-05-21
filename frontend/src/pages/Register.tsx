@@ -38,6 +38,11 @@ const Register = () => {
   };
 
   return (
+  <div className="flex items-center w-100%">
+    <div className="flex items-center h-screen w-100% justify-center">
+      <img src="/assets/logo.png" alt="logo" width="200px" height="200px">
+      </img>
+    </div>
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
@@ -247,6 +252,7 @@ const Register = () => {
           </div>
         </form>
       </div>
+    </div>
     </div>
   );
 };

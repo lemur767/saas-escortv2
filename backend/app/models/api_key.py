@@ -3,6 +3,7 @@ from datetime import datetime
 
 class APIKey(db.Model):
     __tablename__ = 'api_keys'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

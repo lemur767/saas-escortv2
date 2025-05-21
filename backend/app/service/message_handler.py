@@ -1,8 +1,4 @@
-from app.models.message import Message
-from app.models.profile import Profile
-from app.models.client import Client
-from app.models.auto_reply import AutoReply
-from app.models.flagged_message import FlaggedMessage
+from app.models import Message, Profile, Client, AutoReply, FlaggedMessage
 from app.service.ai_service import generate_ai_response
 from app.service.llm_service import LLMService
 from app.extensions import db, socketio
@@ -85,7 +81,8 @@ def handle_incoming_message(profile_id, message_text, sender_number, message_dat
     # Check if message contains flagged content
     is_flagged, flag_reasons = check_flagged_content(message_text)
     if is_flagged:
-        logger.warning(f"Flagged message detected: {flag_reasons}")
+        # Save flag information
+        from app.models.flagged_message import FlaggedMessage
         flagged_message = FlaggedMessage(
             message_id=message.id,
             reasons=json.dumps(flag_reasons),

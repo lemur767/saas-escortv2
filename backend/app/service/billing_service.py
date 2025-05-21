@@ -1,13 +1,11 @@
 import stripe
 from flask import current_app
 from datetime import datetime, timedelta
-from app.models.subscription import Subscription
-from app.models.subscription import SubscriptionPlan
-from app.models.payment import PaymentMethod, Invoice
-from app.models.user import User
+from app.models import models
 
 from app.extensions import db
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +77,12 @@ def create_subscription(user_id, plan_id, payment_method_id):
     else:
         renewal_date = start_date + timedelta(days=30)  # Default to monthly
     
+    meta = {
+        'created_by': 'billing_service',
+        'version': '1.0',
+        'initial_plan': plan.name
+    }
+    
     # Create subscription record in database
     subscription = Subscription(
         user_id=user_id,
@@ -90,10 +94,20 @@ def create_subscription(user_id, plan_id, payment_method_id):
         renewal_date=renewal_date,
         is_active=True,
         payment_status=stripe_subscription.status,
-        auto_renew=True
+        auto_renew=True,
+        subscription_metadata=json.dumps(meta)  # Use the new column name
     )
     
     db.session.add(subscription)
+    db.session.commit()
+    
+    from app.models.subscription_payment_method import SubscriptionPaymentMethod
+    spm = SubscriptionPaymentMethod(
+        subscription_id=subscription.id,
+        payment_method_id=payment_method_id,
+        is_primary=True
+    )
+    db.session.add(spm)
     db.session.commit()
     
     # Create invoice record if present

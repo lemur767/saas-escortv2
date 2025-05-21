@@ -4,6 +4,7 @@ from datetime import datetime
 
 class BannedWord(db.Model):
     __tablename__ = 'banned_words'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(100), nullable=False, unique=True)

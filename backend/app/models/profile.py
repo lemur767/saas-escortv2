@@ -4,6 +4,7 @@ import json
 
 class Profile(db.Model):
     __tablename__ = 'profiles'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -22,6 +23,25 @@ class Profile(db.Model):
     # Relationships
     user = db.relationship('User', back_populates='profiles')
     messages = db.relationship('Message', back_populates='profile', lazy='dynamic')
+    
+    # Define the clients relationship correctly
+    clients = db.relationship(
+        'Client',
+        secondary='profile_clients',
+        backref=db.backref('profiles', lazy='dynamic'),
+        lazy='dynamic'
+    )
+    
+    # Direct relationship to ProfileClient for more control
+    profile_clients = db.relationship(
+        'ProfileClient',
+        foreign_keys='ProfileClient.profile_id',
+        backref=db.backref('profile', lazy='joined'),
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    
+    # Other relationships
     text_examples = db.relationship('TextExample', back_populates='profile', lazy='dynamic')
     auto_replies = db.relationship('AutoReply', back_populates='profile', lazy='dynamic')
     out_of_office_replies = db.relationship('OutOfOfficeReply', back_populates='profile', lazy='dynamic')
