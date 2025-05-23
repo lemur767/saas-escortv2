@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.profile import Profile
+from app.models.user import User
 from app.models.auto_reply import AutoReply
 from app.models.text_example import TextExample
+from app.service.twilio_service import TwilioService
 from app.extensions import db
 import json
 
@@ -12,6 +14,7 @@ profiles_bp = Blueprint('profiles', __name__)
 @jwt_required()
 def get_profiles():
     user_id = get_jwt_identity()
+    
     
     # Fetch profiles
     profiles = Profile.query.filter_by(user_id=user_id).all()
@@ -36,15 +39,59 @@ def get_profile(profile_id):
 @jwt_required()
 def create_profile():
     user_id = get_jwt_identity()
+    user = User.query.get(user_id)
     data = request.json
     
     # Validate required fields
-    if not all([data.get('name'), data.get('phone_number')]):
-        return jsonify({"error": "Missing required fields"}), 400
+    if not all([data.get('name')]):
+        return jsonify({"error": "Profile name is required"}), 400
     
-    # Check if phone number is already in use
-    if Profile.query.filter_by(phone_number=data['phone_number']).first():
-        return jsonify({"error": "Phone number already in use"}), 400
+    # Check if user has a Twilio account
+    if not user.twilio_account_sid:
+        return jsonify({
+            "error": "You need to set up a Twilio account first",
+            "details": "Please set up a Twilio account in your account settings before creating a profile"
+        }), 400
+    
+    # Determine phone number acquisition method
+    phone_number = None
+    phone_source = data.get('phone_source', 'new')  # 'new', 'existing', 'manual'
+    
+    if phone_source == 'new':
+        # Purchase a new number
+        area_code = data.get('area_code')
+        country_code = data.get('country_code', 'US')
+        
+        # Create TwilioService instance with the user
+        twilio_service = TwilioService(user)
+        success, result = twilio_service.purchase_phone_number(area_code, country_code)
+        
+        if not success:
+            return jsonify({"error": f"Failed to purchase phone number: {result}"}), 400
+        
+        phone_number = result
+        
+    elif phone_source == 'existing':
+        # Use an existing number from the user's Twilio account
+        phone_number = data.get('phone_number')
+        if not phone_number:
+            return jsonify({"error": "Phone number is required when using an existing number"}), 400
+        
+        # Create TwilioService instance with the user
+        twilio_service = TwilioService(user)
+        success, result = twilio_service.setup_sms_webhook(phone_number)
+        
+        if not success:
+            return jsonify({"error": f"Failed to configure webhook for phone number: {result}"}), 400
+        
+    elif phone_source == 'manual':
+        # Manually entered number (no Twilio provisioning)
+        phone_number = data.get('phone_number')
+        if not phone_number:
+            return jsonify({"error": "Phone number is required when manually entering a number"}), 400
+    
+    else:
+        return jsonify({"error": "Invalid phone_source value"}), 400
     
     # Create default business hours
     default_hours = {
@@ -61,7 +108,7 @@ def create_profile():
     profile = Profile(
         user_id=user_id,
         name=data['name'],
-        phone_number=data['phone_number'],
+        phone_number=phone_number,
         description=data.get('description', ''),
         business_hours=json.dumps(default_hours)
     )

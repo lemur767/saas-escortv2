@@ -93,8 +93,8 @@ class Message(db.Model):
         
         # Track AI usage if AI-generated
         if ai_generated:
-            from app.models.subscription import Subscription
-            from app.models.billing import UsageRecord
+            from app.models.billing import Subscription
+            from app.models.usage import UsageRecord
             
             # Get user's active subscription
             from app.models.profile import Profile

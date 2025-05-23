@@ -183,8 +183,8 @@ export const useRecentActivities = (profileId, options = {}) => {
       });
       
       setUnreadCount(0);
-      setActivities(prev => 
-        prev.map(activity => ({
+      setActivities
+      prev.map(activity => ({
           ...activity,
           is_read: activityIds ? activityIds.includes(activity.id) : true
         }))

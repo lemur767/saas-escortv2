@@ -2,6 +2,7 @@ import { useState, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useUI } from '../../hooks/useUI'
+import ToggleDark from './DarkModeToggle'
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -108,6 +109,7 @@ const Navbar: React.FC = () => {
                   >
                     Sign out
                   </button>
+                  <ToggleDark />
                 </div>
               )}
             </div>

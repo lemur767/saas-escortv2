@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-
+from app.tasks.scheduler import init_scheduler
 
 
 # Clear the SQLAlchemy registry to prevent duplicate table errors during development
@@ -17,8 +17,7 @@ def create_app(config_name='development'):
     app.config.from_object(config[config_name])
     
  
-    
-    # Initialize extensions
+  
     db.init_app(app)
     
     with app.app_context():
@@ -26,26 +25,28 @@ def create_app(config_name='development'):
         from app.models import init_models
         init_models() 
         # Force SQLAlchemy to configure all mappers
-        from sqlalchemy.orm import configure_mappers
-        configure_mappers()
+    from sqlalchemy.orm import configure_mappers
+    configure_mappers()
     
    
-    
+    if not app.config.get('TESTING', False):
+        with app.app_context():
+            init_scheduler(app)
   
     
-    # Initialize extensions
+    
     CORS(app)
-    db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     
-    # Initialize Celery
+   
     celery.conf.update(app.config)
     
     # Register blueprints
     from app.api.auth import auth_bp
     from app.api.profiles import profiles_bp
+    from app.api.twilio import twilio_bp
     from app.api.messages import messages_bp
     from app.api.webhooks import webhooks_bp
     from app.api.client import clients_bp
@@ -59,6 +60,7 @@ def create_app(config_name='development'):
     app.register_blueprint(webhooks_bp, url_prefix='/api/webhooks')
     app.register_blueprint(clients_bp, url_prefix='/api/clients')
     app.register_blueprint(billing_bp, url_prefix='/api/billing')
+    app.register_blueprint(twilio_bp, url_prefix='/api/twilio')
     app.register_blueprint(text_examples_bp, url_prefix='/api/text_examples')
     app.register_blueprint(ai_settings_bp, url_prefix='/api/ai_settings')
     

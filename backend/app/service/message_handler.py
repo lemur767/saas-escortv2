@@ -132,13 +132,14 @@ def handle_incoming_message(profile_id, message_text, sender_number, message_dat
 
 
 def send_response(profile, response_text, recipient_number, is_ai_generated=True):
-    """
-    Send response via Twilio and save to database.
-    This function formats and sends the SMS response.
-    """
-    logger.info(f"Sending response to {recipient_number}: {response_text}")
+    """Send response via Twilio and save to database"""
+    from app.utils.twilio_helpers import send_sms
+    from app.models.user import User
     
-    # Save outgoing message to database first
+    # Get the user who owns this profile
+    user = User.query.get(profile.user_id)
+    
+    # Save outgoing message to database
     message = Message(
         content=response_text,
         is_incoming=False,
@@ -150,23 +151,24 @@ def send_response(profile, response_text, recipient_number, is_ai_generated=True
     db.session.add(message)
     db.session.commit()
     
-    # Format the message (you can add custom formatting here)
-    formatted_response = format_outgoing_message(response_text, profile)
-    
-    # Send via Twilio
+    # Send via Twilio using the appropriate account
     try:
         twilio_message = send_sms(
             from_number=profile.phone_number,
             to_number=recipient_number,
-            body=formatted_response
+            body=response_text,
+            user=user  # Pass the user to determine which Twilio account to use
         )
         
-        # Update message with Twilio SID and status
+        # Update message with Twilio SID
         message.twilio_sid = twilio_message.sid
         message.send_status = 'sent'
-        db.session.commit()
         
-        logger.info(f"Successfully sent SMS via Twilio: {twilio_message.sid}")
+        # Update usage tracking
+        if user.twilio_usage_tracker:
+            user.twilio_usage_tracker.sms_count += 1
+        
+        db.session.commit()
         
         # Emit WebSocket event
         socketio.emit('new_message', {
@@ -181,6 +183,13 @@ def send_response(profile, response_text, recipient_number, is_ai_generated=True
         })
         
         return message
+    
+    except Exception as e:
+        # Update message status to reflect sending failure
+        message.send_status = 'failed'
+        message.send_error = str(e)
+        db.session.commit()
+        return None
         
     except Exception as e:
         logger.error(f"Error sending SMS: {str(e)}", exc_info=True)
@@ -245,8 +254,8 @@ def check_flagged_content(message_text):
 
 
 def is_within_business_hours(profile):
-    """Check if current time is within business hours for profile."""
     import pytz
+    from pytz import timedelta
     from datetime import datetime
     
     timezone = pytz.timezone(profile.timezone or 'UTC')

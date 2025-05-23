@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, jwt_required,
     get_jwt_identity, get_current_user
 )
 from app.models.user import User
+from app.service.twilio_service import TwilioService
+from app.models.twilio_usage import TwilioUsage
 from app.extensions import db
 from datetime import datetime
 
@@ -24,7 +26,6 @@ def register():
     if User.query.filter_by(email=data['email']).first():
         return jsonify({"error": "Email already registered"}), 400
     
-    # Create new user
     user = User(
         username=data['username'],
         email=data['email'],
@@ -37,6 +38,21 @@ def register():
     db.session.add(user)
     db.session.commit()
     
+    # Only create Twilio subaccount if configured to do so by default
+    twilio_account_created = False
+    if current_app.config.get('TWILIO_DEFAULT_TO_SUBACCOUNT', True):
+        # Create Twilio subaccount for the user
+        twilio_service = TwilioService()
+        success, error = twilio_service.create_subaccount(user)
+        
+        if success:
+            # Save the Twilio credentials
+            db.session.commit()
+            twilio_account_created = True
+        else:
+            # Log the error but continue with registration
+            current_app.logger.error(f"Failed to create Twilio account for user {user.id}: {error}")
+    
     # Generate tokens
     access_token = create_access_token(identity=user.id)
     refresh_token = create_refresh_token(identity=user.id)
@@ -45,9 +61,10 @@ def register():
         "message": "User registered successfully",
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "user": user.to_dict()
+        "user": user.to_dict(),
+        "twilio_account_created": twilio_account_created
     }), 201
-
+    
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.json

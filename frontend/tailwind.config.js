@@ -1,23 +1,35 @@
-/** @type {import('tailwindcss').Config} */
-export default {
+// tailwind.config.js
+module.exports = {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,jsx,ts,tsx}",
+    "./public/index.html"
   ],
+  darkMode: 'class', // This enables the class-based dark mode
   theme: {
     extend: {
       colors: {
+        // You can add custom color mappings here
         primary: {
-          DEFAULT: '#4f46e5',
-          dark: '#4338ca',
-          light: '#818cf8'
+          DEFAULT: 'var(--primary)',
+          dark: 'var(--primary-dark)',
+          light: 'var(--primary-light)',
         },
         secondary: {
-          DEFAULT: '#10b981',
-          dark: '#059669',
-          light: '#34d399'
-        }
-      }
+          DEFAULT: 'var(--secondary)',
+          dark: 'var(--secondary-dark)',
+          light: 'var(--secondary-light)',
+        },
+      },
+      backgroundColor: {
+        'app': 'var(--background)',
+        'card': 'var(--card-bg)',
+      },
+      textColor: {
+        'app': 'var(--foreground)',
+      },
+      borderColor: {
+        'app': 'var(--border-color)',
+      },
     },
   },
   plugins: [],

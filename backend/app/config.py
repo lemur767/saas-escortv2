@@ -2,8 +2,12 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
+from cryptography.fernet import Fernet
+
 load_dotenv()
 
+def generate_encryption_key():
+    return Fernet.generate_key().decode()
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key'
@@ -18,12 +22,26 @@ class Config:
    
     
     # Twilio configuration
+    
+    #Master Accounts
     TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
     TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+    
     VERIFY_TWILIO_SIGNATURE = os.environ.get('VERIFY_TWILIO_SIGNATURE', 'True') == 'True'
     
+    TWILIO_DEFAULT_TO_SUBACCOUNT = os.environ.get('TWILIO_DEFAULT_TO_SUBACCOUNT', 'True') == 'True'
+    
+    TWILIO_SET_TRIAL_LIMITS = os.environ.get('TWILIO_SET_TRIAL_LIMITS', 'True') == 'True'
+    
+    
+    BASE_URL = os.environ.get('BASE_URL', 'http://192.46.222.246/')
+    
+    SMS_RATE = float(os.environ.get('SMS_RATE', '0.0075'))  # Cost per SMS
+    VOICE_RATE = float(os.environ.get('VOICE_RATE', '0.015'))  # Cost per minute
+    NUMBER_RATE = float(os.environ.get('NUMBER_RATE', '1.0'))  # Cost per number per month
+    MARKUP_PERCENTAGE = float(os.environ.get('MARKUP_PERCENTAGE', '20.0'))  # Markup percentage
     #Local LLM
-    # LLM Configuration
+   
     LLM_ENDPOINT = os.environ.get('LLM_ENDPOINT', 'http://192.46.222.246:11434/api/')
     LLM_MODEL = os.environ.get('LLM_MODEL', 'dolphin3')
     LLM_TIMEOUT = int(os.environ.get('LLM_TIMEOUT', '30'))
@@ -44,6 +62,8 @@ class Config:
     # Celery configuration
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    
+    ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY') or generate_encryption_key()
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \

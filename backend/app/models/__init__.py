@@ -3,8 +3,7 @@ Database models package initialization.
 This file imports all models for easy access throughout the application.
 """
 from app.extensions import db
-# In app/models/__init__.py
-from app.extensions import db
+
 
 # Define a function to import all models
 def import_all_models():
@@ -14,9 +13,9 @@ def import_all_models():
     from app.models.client import Client
     from app.models.profile_client import ProfileClient
     from app.models.payment import PaymentMethod
-    from app.models.subscription import Subscription
+    from app.models.twilio_usage import TwilioUsage
     from app.models.subscription_payment_method import SubscriptionPaymentMethod
-    from app.models.billing import Invoice, SubscriptionPlan
+    from app.models.billing import Invoice, SubscriptionPlan, Subscription, InvoiceItem
     from app.models.message import Message
     from app.models.flagged_message import FlaggedMessage
     from app.models.text_example import TextExample
@@ -34,7 +33,9 @@ def import_all_models():
         'PaymentMethod': PaymentMethod,
         'Subscription': Subscription,
         'SubscriptionPaymentMethod': SubscriptionPaymentMethod,
+        'TwilioUsage':TwilioUsage,
         'Invoice': Invoice,
+        'InvoiceItem':InvoiceItem,
         'Message': Message,
         'FlaggedMessage': FlaggedMessage,
         'TextExample': TextExample,

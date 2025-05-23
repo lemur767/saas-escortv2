@@ -12,3 +12,5 @@ celery = Celery(__name__, broker='redis://localhost:6379/0')
 
 # Initialize task queue
 task_queue = None
+
+
