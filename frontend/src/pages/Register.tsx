@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../hooks/useAuth';
 import type { RegisterData } from '../types';
-import { DarkModeToggle } from '../components/common/DarkModeToggle';
 
 const Register = () => {
   const { register: registerUser, isAuthenticated, error, clearError } = useAuth();
@@ -43,10 +42,7 @@ const Register = () => {
     <div className="flex flex-row items-center h-100vh w-50vw justify-center p-2 m-4">
       <img src="/images/logo.jpg" alt="logo" width="600px" height="600px">
       </img>
-      <div>
-        <DarkModeToggle size='lg' style='button'/>
-      </div>
-    </div>
+     </div>
     <div className="min-h-screen flex items-center justify-center shadow-lg border-2 rounded-xl bg-gray-200 py-12 px-8 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>

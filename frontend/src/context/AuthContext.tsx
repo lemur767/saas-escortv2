@@ -2,6 +2,7 @@ import React, { createContext, useReducer, useEffect, useCallback } from 'react'
 import { jwtDecode } from 'jwt-decode';
 import axios from '../api';
 import type { User, LoginCredentials, RegisterData } from '../types';
+import axiosBase from '../api/index';
 
 // Define the AuthState type
 export interface AuthState {
@@ -206,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'AUTH_START' });
 
     try {
-      const res = await axios.post('/api/auth/login', credentials);
+      const res = await axios.post(`${axiosBase}/api/auth/login`, credentials);
       
       dispatch({
         type: 'AUTH_SUCCESS',
@@ -228,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'AUTH_START' });
 
     try {
-      const res = await axios.post('/api/auth/register', data);
+      const res = await axios.post(`${axiosBase}/api/auth/register`, data);
       
       dispatch({
         type: 'AUTH_SUCCESS',

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-export const DarkModeToggle = ({ 
+const ToggleDark = ({ 
   size = 'md', 
   showLabels = true, 
   className = '',
@@ -60,33 +60,50 @@ export const DarkModeToggle = ({
     }
   };
 
-  // Size configurations
+ // Define the size type explicitly
+type SizeKey = 'sm' | 'md' | 'lg';
 
-  const sizeClasses = {
-    sm: {
-      switch: 'w-8 h-4',
-      slider: 'h-3 w-3 left-0.5 bottom-0.5 translate-x-4',
-      button: 'p-1.5',
-      icon: 'h-3 w-3',
-      text: 'text-xs'
-    },
-    md: {
-      switch: 'w-12 h-6',
-      slider: 'h-4 w-4 left-1 bottom-1 translate-x-6',
-      button: 'p-2',
-      icon: 'h-5 w-5',
-      text: 'text-sm'
-    },
-    lg: {
-      switch: 'w-16 h-8',
-      slider: 'h-6 w-6 left-1 bottom-1 translate-x-8',
-      button: 'p-3',
-      icon: 'h-6 w-6',
-      text: 'text-base'
-    }
-  };
+// Define the style configuration with proper typing
+interface SizeStyles {
+  switch: string;
+  slider: string;
+  button: string;
+  icon: string;
+  text: string;
+}
 
-  const currentSize = sizeClasses[size];
+// Type the styles object properly
+const sizeStyles: Record<SizeKey, SizeStyles> = {
+  sm: {
+    switch: 'w-11 h-6',
+    slider: 'h-5 w-5 left-0.5 bottom-0.5',
+    button: 'p-1',
+    icon: 'w-3 h-3',
+    text: 'text-sm'
+  },
+  md: {
+    switch: 'w-14 h-7',
+    slider: 'h-6 w-6 left-0.5 bottom-0.5',
+    button: 'p-2',
+    icon: 'w-4 h-4',
+    text: 'text-base'
+  },
+  lg: {
+    switch: 'w-16 h-8',
+    slider: 'h-7 w-7 left-0.5 bottom-0.5',
+    button: 'p-2',
+    icon: 'w-5 h-5',
+    text: 'text-lg'
+  }
+};
+
+interface DarkModeToggleProps {
+  size?: SizeKey;
+  showLabel?: boolean;
+  className?: string;
+}
+
+const currentSize = sizeStyles[size as 'sm' | 'md' | 'lg'];
 
   // Switch Style Component
   const SwitchToggle = () => (
@@ -180,3 +197,5 @@ export const DarkModeToggle = ({
 
   return style === 'switch' ? <SwitchToggle /> : <ButtonToggle />;
 };
+
+export default ToggleDark;

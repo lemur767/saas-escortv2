@@ -4,8 +4,9 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../hooks/useAuth';
 import type { LoginCredentials } from '../types';
 
+
 const Login = () => {
-  const { login, isAuthenticated, error, clearError } = useAuth();
+  const { login: loginUser, isAuthenticated, error, clearError } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -26,7 +27,7 @@ const Login = () => {
   const onSubmit = async (data: LoginCredentials) => {
     setIsSubmitting(true);
     try {
-      await login(data);
+      await loginUser(data);
     } catch (err) {
       console.error('Login failed:', err);
     } finally {

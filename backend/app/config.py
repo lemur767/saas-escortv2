@@ -33,6 +33,7 @@ class Config:
     
     TWILIO_SET_TRIAL_LIMITS = os.environ.get('TWILIO_SET_TRIAL_LIMITS', 'True') == 'True'
     
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173').split(',')
     
     BASE_URL = os.environ.get('BASE_URL', 'http://192.46.222.246/')
     
@@ -68,11 +69,21 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
         f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@192.46.222.246:5432/{Config.DB_NAME}'
+        
+       # Development-specific CORS (more permissive)
+    CORS_ORIGINS = [
+        'http://localhost:3000',  # React dev server
+        'http://localhost:5173',  # Vite dev server
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173'
+    ]
 
 class ProductionConfig(Config):
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+    SQLALCHEMY_DATABASE_URI = os.environ.get('PROD_DATABASE_URL') or \
         f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@192.46.222.246:5432/{Config.DB_NAME}'
     VERIFY_TWILIO_SIGNATURE = True
+    
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '').split(',') if os.environ.get('CORS_ORIGINS') else []
     
 config = {
     'development': DevelopmentConfig,

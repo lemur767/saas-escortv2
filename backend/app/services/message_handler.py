@@ -1,9 +1,6 @@
-from app.models import Message, Profile, Client, AutoReply, FlaggedMessage
-from app.service.ai_service import generate_ai_response
-from app.service.llm_service import LLMService
 from app.extensions import db, socketio
 from app.utils.twilio_helpers import send_sms
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import json
 import logging
@@ -16,12 +13,14 @@ FLAG_WORDS = [
     "underage", "minor", "illegal", "bust", "investigation"
 ]
 
-
 def handle_incoming_message(profile_id, message_text, sender_number, message_data=None):
-    """
-    Process incoming message and determine appropriate response.
-    This is the main orchestration function for message processing.
-    """
+    """Process incoming message and determine appropriate response"""
+    from app.models.message import Message
+    from app.models.profile import Profile
+    from app.models.client import Client
+    from app.models.auto_reply import AutoReply
+    from app.models.flagged_message import FlaggedMessage
+    
     logger.info(f"Handling incoming message for profile {profile_id} from {sender_number}")
     
     # Get profile information
@@ -56,11 +55,6 @@ def handle_incoming_message(profile_id, message_text, sender_number, message_dat
     # Add Twilio metadata if available
     if message_data:
         message.twilio_sid = message_data.get('message_sid')
-        message.metadata = json.dumps({
-            'from_country': message_data.get('from_country'),
-            'from_state': message_data.get('from_state'),
-            'from_city': message_data.get('from_city'),
-        })
     
     db.session.add(message)
     db.session.commit()
@@ -81,8 +75,6 @@ def handle_incoming_message(profile_id, message_text, sender_number, message_dat
     # Check if message contains flagged content
     is_flagged, flag_reasons = check_flagged_content(message_text)
     if is_flagged:
-        # Save flag information
-        from app.models.flagged_message import FlaggedMessage
         flagged_message = FlaggedMessage(
             message_id=message.id,
             reasons=json.dumps(flag_reasons),
@@ -104,13 +96,18 @@ def handle_incoming_message(profile_id, message_text, sender_number, message_dat
     
     # Check if within business hours
     if not is_within_business_hours(profile):
-        out_of_office_reply = profile.out_of_office_replies.filter_by(is_active=True).first()
+        from app.models.auto_reply import OutOfOfficeReply
+        out_of_office_reply = OutOfOfficeReply.query.filter_by(
+            profile_id=profile.id, 
+            is_active=True
+        ).first()
         if out_of_office_reply:
             logger.info(f"Outside business hours, sending out-of-office reply")
             return send_response(profile, out_of_office_reply.message, sender_number, is_ai_generated=False)
     
     # Generate AI response using your local LLM
     try:
+        from app.services.llm_service import LLMService
         llm_service = LLMService()
         ai_response = llm_service.generate_response(
             profile=profile,
@@ -133,7 +130,7 @@ def handle_incoming_message(profile_id, message_text, sender_number, message_dat
 
 def send_response(profile, response_text, recipient_number, is_ai_generated=True):
     """Send response via Twilio and save to database"""
-    from app.utils.twilio_helpers import send_sms
+    from app.models.message import Message
     from app.models.user import User
     
     # Get the user who owns this profile
@@ -185,13 +182,6 @@ def send_response(profile, response_text, recipient_number, is_ai_generated=True
         return message
     
     except Exception as e:
-        # Update message status to reflect sending failure
-        message.send_status = 'failed'
-        message.send_error = str(e)
-        db.session.commit()
-        return None
-        
-    except Exception as e:
         logger.error(f"Error sending SMS: {str(e)}", exc_info=True)
         # Update message status to reflect sending failure
         message.send_status = 'failed'
@@ -201,11 +191,7 @@ def send_response(profile, response_text, recipient_number, is_ai_generated=True
 
 
 def format_outgoing_message(message_text, profile):
-    """
-    Format outgoing message according to profile preferences.
-    You can customize this to add signatures, formatting, etc.
-    """
-    # Example formatting - you can customize this
+    """Format outgoing message according to profile preferences"""
     formatted_text = message_text
     
     # Add signature if configured
@@ -220,7 +206,9 @@ def format_outgoing_message(message_text, profile):
 
 
 def get_conversation_history(profile_id, client_phone, limit=10):
-    """Get recent conversation history between profile and client."""
+    """Get recent conversation history between profile and client"""
+    from app.models.message import Message
+    
     messages = Message.query.filter(
         Message.profile_id == profile_id,
         Message.sender_number == client_phone
@@ -231,7 +219,7 @@ def get_conversation_history(profile_id, client_phone, limit=10):
 
 
 def check_flagged_content(message_text):
-    """Check if message contains flagged content."""
+    """Check if message contains flagged content"""
     is_flagged = False
     reasons = []
     
@@ -254,9 +242,8 @@ def check_flagged_content(message_text):
 
 
 def is_within_business_hours(profile):
+    """Check if current time is within business hours for profile"""
     import pytz
-    from pytz import timedelta
-    from datetime import datetime
     
     timezone = pytz.timezone(profile.timezone or 'UTC')
     current_time = datetime.now(timezone)

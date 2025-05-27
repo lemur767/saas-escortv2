@@ -24,8 +24,6 @@ class Client(db.Model):
         cascade='all, delete-orphan'
     )
     
-    # The profiles relationship is handled through the backref in Profile model
-    
     def to_dict(self):
         return {
             'id': self.id,

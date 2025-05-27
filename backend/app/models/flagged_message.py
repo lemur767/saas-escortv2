@@ -1,5 +1,6 @@
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 import json
 
 class FlaggedMessage(db.Model):
@@ -13,11 +14,8 @@ class FlaggedMessage(db.Model):
     review_notes = db.Column(db.Text)
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     reviewed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-   
-   
- 
+    created_at = db.Column(db.DateTime, default=datetime.now(pytz.UTC))  # FIXED: was datetime.utcn
+    updated_at = db.Column(db.DateTime, default=datetime.now(pytz.UTC), onupdate=datetime.now(pytz.UTC))
     reviewer = db.relationship('User')
     
     def get_reasons(self):
@@ -29,7 +27,7 @@ class FlaggedMessage(db.Model):
         self.reasons = json.dumps(reasons_list)
     
     def to_dict(self):
-        message_obj = self.message  # This uses the property
+        message_obj = self.message
         
         return {
             'id': self.id,
@@ -37,9 +35,9 @@ class FlaggedMessage(db.Model):
             'message_content': message_obj.content if message_obj else None,
             'reasons': self.get_reasons(),
             'is_reviewed': self.is_reviewed,
-            'reviewer_id': self.reviewer_id,
+            'reviewed_by': self.reviewed_by,
             'review_notes': self.review_notes,
-            'review_date': self.review_date.isoformat() if self.review_date else None,
+            'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }

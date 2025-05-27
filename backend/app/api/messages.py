@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.message import Message
 from app.models.profile import Profile
 from app.models.client import Client
-from app.service.message_handler import send_response
+from app.services.message_handler import send_response
 from app.extensions import db
 from datetime import datetime, timedelta
 

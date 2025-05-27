@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.user import User
 from app.models.profile import Profile
-from app.service.twilio_service import TwilioService
+from app.services.twilio_service import TwilioService
 from app.extensions import db
 from datetime import datetime
 

@@ -4,7 +4,7 @@ from app.models.profile import Profile
 from app.models.user import User
 from app.models.auto_reply import AutoReply
 from app.models.text_example import TextExample
-from app.service.twilio_service import TwilioService
+from app.services.twilio_service import TwilioService
 from app.extensions import db
 import json
 

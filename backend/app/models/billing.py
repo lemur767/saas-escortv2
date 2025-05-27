@@ -1,5 +1,5 @@
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 class SubscriptionPlan(db.Model):
@@ -8,43 +8,60 @@ class SubscriptionPlan(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
     price = db.Column(db.Numeric(10, 2), nullable=False)
-    profile_limit = db.Column(db.Integer, nullable=False)
-    ai_responses_limit = db.Column(db.Integer, nullable=False)
-    message_history_days = db.Column(db.Integer, nullable=False)
-    features = db.Column(db.Text, nullable=False)  # JSON array of features
+    billing_cycle = db.Column(db.String(20), default='monthly')  # 'monthly' or 'yearly'
+    
+    # Feature limits
+    max_profiles = db.Column(db.Integer, default=1)
+    monthly_message_limit = db.Column(db.Integer)  # NULL = unlimited
+    monthly_ai_response_limit = db.Column(db.Integer)  # NULL = unlimited
+    message_history_days = db.Column(db.Integer, default=30)
+    
+    # Stripe integration
+    stripe_product_id = db.Column(db.String(100))
+    stripe_price_id = db.Column(db.String(100))
+    
+    # Features and metadata
+    features = db.Column(db.Text)  # JSON string of features
+    is_active = db.Column(db.Boolean, default=True)
+    is_featured = db.Column(db.Boolean, default=False)
+    sort_order = db.Column(db.Integer, default=0)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     subscriptions = db.relationship('Subscription', back_populates='plan')
     
-    def __init__(self, **kwargs):
-        if 'features' in kwargs and isinstance(kwargs['features'], list):
-            kwargs['features'] = json.dumps(kwargs['features'])
-        super(SubscriptionPlan, self).__init__(**kwargs)
-    
-    @property
-    def features_list(self):
-        """Return features as list"""
+    def get_features(self):
+        """Return features as dictionary"""
         if self.features:
             return json.loads(self.features)
-        return []
+        return {}
+    
+    def set_features(self, features_dict):
+        """Set features from dictionary"""
+        self.features = json.dumps(features_dict)
     
     def to_dict(self):
         """Convert plan to dictionary"""
         return {
             'id': self.id,
             'name': self.name,
+            'description': self.description,
             'price': float(self.price),
-            'profile_limit': self.profile_limit,
-            'ai_responses_limit': self.ai_responses_limit,
+            'billing_cycle': self.billing_cycle,
+            'max_profiles': self.max_profiles,
+            'monthly_message_limit': self.monthly_message_limit,
+            'monthly_ai_response_limit': self.monthly_ai_response_limit,
             'message_history_days': self.message_history_days,
-            'features': self.features_list,
+            'features': self.get_features(),
+            'is_active': self.is_active,
+            'is_featured': self.is_featured,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
-
 
 
 class Subscription(db.Model):
@@ -72,20 +89,8 @@ class Subscription(db.Model):
     
     # Relationships
     user = db.relationship('User', back_populates='subscriptions')
-    plan = db.relationship('SubscriptionPlan')
-    
-    # Singular relationship to the primary payment method
+    plan = db.relationship('SubscriptionPlan', back_populates='subscriptions')
     payment_method = db.relationship('PaymentMethod', foreign_keys=[payment_method_id])
-    
-    # Plural relationship to all payment methods associated with this subscription
-    # This might be useful if you want to track all payment methods ever used
-    payment_methods = db.relationship(
-        'PaymentMethod',
-        secondary='subscription_payment_methods',
-        backref=db.backref('subscriptions', lazy='dynamic'),
-        lazy='dynamic'
-    )
-    
     invoices = db.relationship('Invoice', back_populates='subscription', lazy='dynamic')
     
     def set_metadata(self, metadata_dict):
@@ -98,31 +103,23 @@ class Subscription(db.Model):
     
     def get_current_period_start(self):
         """Get the start date of the current billing period"""
-        # If we have a stored renewal date, use one period before that
         if self.renewal_date:
             if self.plan.billing_cycle == 'monthly':
                 return self.renewal_date - timedelta(days=30)
             elif self.plan.billing_cycle == 'yearly':
                 return self.renewal_date - timedelta(days=365)
-            else:
-                return self.start_date
-        
-        # Otherwise, use the subscription start date
         return self.start_date
     
     def get_current_period_end(self):
         """Get the end date of the current billing period"""
-        # If we have a stored renewal date, use that
         if self.renewal_date:
             return self.renewal_date
         
-        # Otherwise, calculate based on start date and billing cycle
         if self.plan.billing_cycle == 'monthly':
             return self.start_date + timedelta(days=30)
         elif self.plan.billing_cycle == 'yearly':
             return self.start_date + timedelta(days=365)
         else:
-            # Default to 30 days for unknown billing cycles
             return self.start_date + timedelta(days=30)
     
     def to_dict(self):
@@ -149,8 +146,11 @@ class Subscription(db.Model):
                 'end': self.get_current_period_end().isoformat()
             }
         }
+
+
 class Invoice(db.Model):
     __tablename__ = 'invoices'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'), nullable=False)
@@ -211,13 +211,6 @@ class Invoice(db.Model):
         """Get remaining balance due"""
         return max(0, float(self.amount_due) - float(self.amount_paid or 0))
     
-    def mark_as_paid(self, amount_paid=None, paid_at=None):
-        """Mark invoice as paid"""
-        self.amount_paid = amount_paid or self.amount_due
-        self.paid_at = paid_at or datetime.utcnow()
-        self.status = 'paid'
-        db.session.commit()
-    
     def to_dict(self):
         return {
             'id': self.id,
@@ -248,6 +241,7 @@ class Invoice(db.Model):
 
 class InvoiceItem(db.Model):
     __tablename__ = 'invoice_items'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False)
@@ -289,110 +283,3 @@ class InvoiceItem(db.Model):
             'discount_amount': float(self.discount_amount or 0),
             'created_at': self.created_at.isoformat()
         }
-
-
-# Helper functions for invoice management
-
-def generate_invoice_number():
-    """Generate a unique invoice number"""
-    from datetime import datetime
-    import random
-    import string
-    
-    # Format: INV-YYYYMM-XXXXX (e.g., INV-202505-A1B2C)
-    year_month = datetime.now().strftime('%Y%m')
-    random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-    
-    invoice_number = f"INV-{year_month}-{random_suffix}"
-    
-    # Ensure uniqueness
-    while Invoice.query.filter_by(invoice_number=invoice_number).first():
-        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-        invoice_number = f"INV-{year_month}-{random_suffix}"
-    
-    return invoice_number
-
-
-def create_invoice_from_stripe(stripe_invoice):
-    """Create invoice from Stripe invoice object"""
-    
-    # Find subscription
-    from app.models.billing import Subscription
-    subscription = Subscription.query.filter_by(
-        stripe_subscription_id=stripe_invoice.subscription
-    ).first()
-    
-    if not subscription:
-        raise ValueError(f"Subscription not found for Stripe ID: {stripe_invoice.subscription}")
-    
-    # Create invoice
-    invoice = Invoice(
-        subscription_id=subscription.id,
-        stripe_invoice_id=stripe_invoice.id,
-        invoice_number=generate_invoice_number(),
-        amount_due=stripe_invoice.amount_due / 100,  # Convert from cents
-        amount_paid=stripe_invoice.amount_paid / 100,
-        currency=stripe_invoice.currency.upper(),
-        tax_amount=(stripe_invoice.tax or 0) / 100,
-        status=stripe_invoice.status,
-        billing_reason=stripe_invoice.billing_reason,
-        period_start=datetime.fromtimestamp(stripe_invoice.period_start) if stripe_invoice.period_start else None,
-        period_end=datetime.fromtimestamp(stripe_invoice.period_end) if stripe_invoice.period_end else None,
-        due_date=datetime.fromtimestamp(stripe_invoice.due_date) if stripe_invoice.due_date else None,
-        paid_at=datetime.fromtimestamp(stripe_invoice.status_transitions.paid_at) if stripe_invoice.status_transitions.paid_at else None,
-        description=stripe_invoice.description,
-        invoice_pdf_url=stripe_invoice.invoice_pdf,
-        hosted_invoice_url=stripe_invoice.hosted_invoice_url
-    )
-    
-    db.session.add(invoice)
-    db.session.flush()  # Get the invoice ID
-    
-    # Create invoice items
-    for stripe_item in stripe_invoice.lines.data:
-        invoice_item = InvoiceItem(
-            invoice_id=invoice.id,
-            stripe_invoice_item_id=stripe_item.id,
-            description=stripe_item.description or 'Subscription charge',
-            quantity=stripe_item.quantity,
-            unit_amount=stripe_item.price.unit_amount / 100,
-            amount=stripe_item.amount / 100,
-            currency=stripe_item.currency.upper(),
-            period_start=datetime.fromtimestamp(stripe_item.period.start) if stripe_item.period else None,
-            period_end=datetime.fromtimestamp(stripe_item.period.end) if stripe_item.period else None,
-            proration=stripe_item.proration
-        )
-        db.session.add(invoice_item)
-    
-    db.session.commit()
-    return invoice
-
-
-def get_overdue_invoices(user_id=None):
-    """Get all overdue invoices, optionally filtered by user"""
-    query = db.session.query(Invoice).filter(
-        Invoice.status.in_(['open', 'past_due']),
-        Invoice.due_date < datetime.utcnow()
-    )
-    
-    if user_id:
-        query = query.join(Subscription).filter(Subscription.user_id == user_id)
-    
-    return query.all()
-
-
-def get_user_invoices(user_id, limit=None, status=None):
-    """Get invoices for a specific user"""
-    query = db.session.query(Invoice).join(Subscription).filter(
-        Subscription.user_id == user_id
-    )
-    
-    if status:
-        query = query.filter(Invoice.status == status)
-    
-    query = query.order_by(Invoice.created_at.desc())
-    
-    if limit:
-        query = query.limit(limit)
-    
-    return query.all()

@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, current_app
 from app.models.user import User
 from app.models.profile import Profile
 from app.utils.twilio_helpers import validate_twilio_signature
-from app.service.message_handler import handle_incoming_message
+from app.services.message_handler import handle_incoming_message
 from app.extensions import task_queue, db
 from app.models.twilio_usage import TwilioUsage
 

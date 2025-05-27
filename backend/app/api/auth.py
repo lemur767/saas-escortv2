@@ -1,19 +1,39 @@
-from flask import Blueprint, request, jsonify, current_app
+# app/api/auth.py - Updated authentication routes with CORS handling
+
+from flask import Blueprint, request, jsonify, make_response, current_app
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, jwt_required,
-    get_jwt_identity, get_current_user
+    get_jwt_identity
 )
 from app.models.user import User
-from app.service.twilio_service import TwilioService
-from app.models.twilio_usage import TwilioUsage
 from app.extensions import db
+from app.utils.cors_middleware import cors_enabled
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/register', methods=['POST'])
+# Apply CORS to all routes in this blueprint
+@auth_bp.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    
+    if origin and origin in current_app.config.get('CORS_ORIGINS', []):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = (
+            'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+        )
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    
+    return response
+
+@auth_bp.route('/register', methods=['POST', 'OPTIONS'])
+@cors_enabled
 def register():
-    data = request.json
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+    
+    data = request.get_json()
     
     # Validate required fields
     if not all([data.get('username'), data.get('email'), data.get('password')]):
@@ -26,6 +46,7 @@ def register():
     if User.query.filter_by(email=data['email']).first():
         return jsonify({"error": "Email already registered"}), 400
     
+    # Create new user
     user = User(
         username=data['username'],
         email=data['email'],
@@ -38,21 +59,6 @@ def register():
     db.session.add(user)
     db.session.commit()
     
-    # Only create Twilio subaccount if configured to do so by default
-    twilio_account_created = False
-    if current_app.config.get('TWILIO_DEFAULT_TO_SUBACCOUNT', True):
-        # Create Twilio subaccount for the user
-        twilio_service = TwilioService()
-        success, error = twilio_service.create_subaccount(user)
-        
-        if success:
-            # Save the Twilio credentials
-            db.session.commit()
-            twilio_account_created = True
-        else:
-            # Log the error but continue with registration
-            current_app.logger.error(f"Failed to create Twilio account for user {user.id}: {error}")
-    
     # Generate tokens
     access_token = create_access_token(identity=user.id)
     refresh_token = create_refresh_token(identity=user.id)
@@ -61,13 +67,16 @@ def register():
         "message": "User registered successfully",
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "user": user.to_dict(),
-        "twilio_account_created": twilio_account_created
+        "user": user.to_dict()
     }), 201
-    
-@auth_bp.route('/login', methods=['POST'])
+
+@auth_bp.route('/login', methods=['POST', 'OPTIONS'])
+@cors_enabled
 def login():
-    data = request.json
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+    
+    data = request.get_json()
     
     # Validate required fields
     if not all([data.get('username'), data.get('password')]):
@@ -94,9 +103,13 @@ def login():
         "user": user.to_dict()
     }), 200
 
-@auth_bp.route('/me', methods=['GET'])
+@auth_bp.route('/me', methods=['GET', 'OPTIONS'])
 @jwt_required()
+@cors_enabled
 def get_user_profile():
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+    
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
@@ -105,9 +118,13 @@ def get_user_profile():
     
     return jsonify(user.to_dict()), 200
 
-@auth_bp.route('/refresh-token', methods=['POST'])
+@auth_bp.route('/refresh-token', methods=['POST', 'OPTIONS'])
 @jwt_required(refresh=True)
+@cors_enabled
 def refresh():
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+    
     user_id = get_jwt_identity()
     access_token = create_access_token(identity=user_id)
     
