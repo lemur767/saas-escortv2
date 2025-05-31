@@ -1,4 +1,5 @@
-import openai
+
+import requests
 from flask import current_app
 from app.models.ai_model_settings import AIModelSettings
 from app.models.message import Message
@@ -6,32 +7,31 @@ from app.models.text_example import TextExample
 from app.models.client import Client
 
 def generate_ai_response(profile, incoming_message, sender_number):
-    """Generate AI response for an incoming message"""
+    """Generate AI response using self-hosted LLM instead of OpenAI"""
     # Get AI settings for the profile
     ai_settings = profile.ai_settings
     if not ai_settings:
         # Use default settings if not set
         ai_settings = AIModelSettings(
             profile_id=profile.id,
-            model_version=current_app.config['OPENAI_MODEL'],
+            model_version=current_app.config['LLM_MODEL'],
             temperature=0.7,
             response_length=150
         )
     
-    # Get recent conversation history
+    # Get recent conversation history (using your existing method)
     conversation = get_conversation_history(profile.id, sender_number)
     
-    # Get client information
+    # Get client information (using your existing method)
     client = Client.query.filter_by(phone_number=sender_number).first()
-    client_name = client.name if client and client.name else "the client"
     
-    # Get examples of profile's texting style
+    # Get examples of profile's texting style (using your existing method)
     examples = TextExample.query.filter_by(profile_id=profile.id).order_by(TextExample.timestamp).limit(20).all()
     
-    # Create system prompt
+    # Create system prompt (using your existing method)
     system_prompt = create_system_prompt(profile, client, examples)
     
-    # Prepare conversation for AI
+    # Prepare conversation for LLM
     messages = [
         {"role": "system", "content": system_prompt}
     ]
@@ -44,25 +44,34 @@ def generate_ai_response(profile, incoming_message, sender_number):
     # Add current message
     messages.append({"role": "user", "content": incoming_message})
     
-    # Set up OpenAI API key
-    openai.api_key = current_app.config['OPENAI_API_KEY']
-    
+    # Call LLM API
     try:
-        # Generate response
-        response = openai.ChatCompletion.create(
-            model=ai_settings.model_version,
-            messages=messages,
-            max_tokens=ai_settings.response_length,
-            temperature=ai_settings.temperature,
+        response = requests.post(
+            f"{current_app.config['LLM_BASE_URL']}/chat",
+            json={
+                "model": "dolphin3"
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "temperature": ai_settings.temperature,
+                    "num_predict": ai_settings.response_length
+                }
+            },
+            timeout=10  # Add timeout to prevent hanging
         )
         
-        # Extract the generated text
-        generated_text = response.choices[0].message.content
-        
-        return generated_text
+        # Check if request was successful
+        if response.status_code == 200:
+            result = response.json()
+            generated_text = result["message"]["content"]
+            return generated_text
+        else:
+            current_app.logger.error(f"LLM API error: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        current_app.logger.error(f"Error generating AI response: {e}")
+        current_app.logger.error(f"Error generating LLM response: {e}")
         return None
+
 
 def get_conversation_history(profile_id, client_phone, limit=10):
     """Get recent conversation history between profile and client"""
@@ -86,6 +95,9 @@ def create_system_prompt(profile, client, examples):
     3. If asked about location or meeting details, suggest continuing the conversation but don't make specific commitments
     4. Do not mention that you're an AI - respond as if you're the actual person
     5. If messages contain suspicious content, be vague or change the subject
+    6. Be seductive, flirty, short and consise.
+    7. Use one or two emojis.
+    
     """
     
     # Add client-specific information

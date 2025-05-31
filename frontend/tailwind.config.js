@@ -1,34 +1,132 @@
-// tailwind.config.js
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
-    "./public/index.html"
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  darkMode: 'class', // This enables the class-based dark mode
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        // You can add custom color mappings here
+        text: {
+          DEFAULT: 'rgb(var(--text) / <alpha-value>)',
+          50: 'rgb(var(--text-50) / <alpha-value>)',
+          100: 'rgb(var(--text-100) / <alpha-value>)',
+          200: 'rgb(var(--text-200) / <alpha-value>)',
+          300: 'rgb(var(--text-300) / <alpha-value>)',
+          400: 'rgb(var(--text-400) / <alpha-value>)',
+          500: 'rgb(var(--text-500) / <alpha-value>)',
+          600: 'rgb(var(--text-600) / <alpha-value>)',
+          700: 'rgb(var(--text-700) / <alpha-value>)',
+          800: 'rgb(var(--text-800) / <alpha-value>)',
+          900: 'rgb(var(--text-900) / <alpha-value>)',
+        },
+        background: {
+          DEFAULT: 'rgb(var(--background) / <alpha-value>)',
+          50: 'rgb(var(--background-50) / <alpha-value>)',
+          100: 'rgb(var(--background-100) / <alpha-value>)',
+          200: 'rgb(var(--background-200) / <alpha-value>)',
+          300: 'rgb(var(--background-300) / <alpha-value>)',
+          400: 'rgb(var(--background-400) / <alpha-value>)',
+          500: 'rgb(var(--background-500) / <alpha-value>)',
+          600: 'rgb(var(--background-600) / <alpha-value>)',
+          700: 'rgb(var(--background-700) / <alpha-value>)',
+          800: 'rgb(var(--background-800) / <alpha-value>)',
+          900: 'rgb(var(--background-900) / <alpha-value>)',
+        },
         primary: {
-          DEFAULT: 'var(--primary)',
-          dark: 'var(--primary-dark)',
-          light: 'var(--primary-light)',
+          DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
+          50: 'rgb(var(--primary-50) / <alpha-value>)',
+          100: 'rgb(var(--primary-100) / <alpha-value>)',
+          200: 'rgb(var(--primary-200) / <alpha-value>)',
+          300: 'rgb(var(--primary-300) / <alpha-value>)',
+          400: 'rgb(var(--primary-400) / <alpha-value>)',
+          500: 'rgb(var(--primary-500) / <alpha-value>)',
+          600: 'rgb(var(--primary-600) / <alpha-value>)',
+          700: 'rgb(var(--primary-700) / <alpha-value>)',
+          800: 'rgb(var(--primary-800) / <alpha-value>)',
+          900: 'rgb(var(--primary-900) / <alpha-value>)',
         },
         secondary: {
-          DEFAULT: 'var(--secondary)',
-          dark: 'var(--secondary-dark)',
-          light: 'var(--secondary-light)',
+          DEFAULT: 'rgb(var(--secondary) / <alpha-value>)',
+          50: 'rgb(var(--secondary-50) / <alpha-value>)',
+          100: 'rgb(var(--secondary-100) / <alpha-value>)',
+          200: 'rgb(var(--secondary-200) / <alpha-value>)',
+          300: 'rgb(var(--secondary-300) / <alpha-value>)',
+          400: 'rgb(var(--secondary-400) / <alpha-value>)',
+          500: 'rgb(var(--secondary-500) / <alpha-value>)',
+          600: 'rgb(var(--secondary-600) / <alpha-value>)',
+          700: 'rgb(var(--secondary-700) / <alpha-value>)',
+          800: 'rgb(var(--secondary-800) / <alpha-value>)',
+          900: 'rgb(var(--secondary-900) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+          50: 'rgb(var(--accent-50) / <alpha-value>)',
+          100: 'rgb(var(--accent-100) / <alpha-value>)',
+          200: 'rgb(var(--accent-200) / <alpha-value>)',
+          300: 'rgb(var(--accent-300) / <alpha-value>)',
+          400: 'rgb(var(--accent-400) / <alpha-value>)',
+          500: 'rgb(var(--accent-500) / <alpha-value>)',
+          600: 'rgb(var(--accent-600) / <alpha-value>)',
+          700: 'rgb(var(--accent-700) / <alpha-value>)',
+          800: 'rgb(var(--accent-800) / <alpha-value>)',
+          900: 'rgb(var(--accent-900) / <alpha-value>)',
         },
       },
-      backgroundColor: {
-        'app': 'var(--background)',
-        'card': 'var(--card-bg)',
+      spacing: {
+        '18': '4.5rem',
+        '72': '18rem',
+        '84': '21rem',
+        '96': '24rem',
       },
-      textColor: {
-        'app': 'var(--foreground)',
+      fontSize: {
+        sm: '0.750rem',
+        base: '1rem',
+        xl: '1.333rem',
+        '2xl': '1.777rem',
+        '3xl': '2.369rem',
+        '4xl': '3.158rem',
+        '5xl': '4.210rem',
       },
-      borderColor: {
-        'app': 'var(--border-color)',
+      fontFamily: {
+        heading: 'Offside',
+        body: 'Offside',
+      },
+      fontWeight: {
+        normal: '400',
+        bold: '700',
+      },
+      borderRadius: {
+        'xl': '0.75rem',
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+      },
+      boxShadow: {
+        'soft': '0 2px 8px 0 rgba(0, 0, 0, 0.05)',
+        'medium': '0 4px 12px 0 rgba(0, 0, 0, 0.1)',
+        'hard': '0 8px 24px 0 rgba(0, 0, 0, 0.15)',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+        'slide-down': 'slideDown 0.3s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        slideDown: {
+          '0%': { transform: 'translateY(-10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
       },
     },
   },

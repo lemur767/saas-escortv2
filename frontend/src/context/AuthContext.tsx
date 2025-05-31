@@ -229,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'AUTH_START' });
 
     try {
-      const res = await axios.post(`${axiosBase}/api/auth/register`, data);
+      const res = await axios.post('http://localhost:5000/api/auth/register', data);
       
       dispatch({
         type: 'AUTH_SUCCESS',

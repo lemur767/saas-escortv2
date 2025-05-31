@@ -42,8 +42,7 @@ class Config:
     NUMBER_RATE = float(os.environ.get('NUMBER_RATE', '1.0'))  # Cost per number per month
     MARKUP_PERCENTAGE = float(os.environ.get('MARKUP_PERCENTAGE', '20.0'))  # Markup percentage
     #Local LLM
-   
-    LLM_ENDPOINT = os.environ.get('LLM_ENDPOINT', 'http://192.46.222.246:11434/api/')
+    LLM_BASE_URL = os.environ.get('LLM_BASE_URL', 'http://10.0.0.6:11434/api')
     LLM_MODEL = os.environ.get('LLM_MODEL', 'dolphin3')
     LLM_TIMEOUT = int(os.environ.get('LLM_TIMEOUT', '30'))
     LLM_MAX_TOKENS = int(os.environ.get('LLM_MAX_TOKENS', '150'))
@@ -61,14 +60,14 @@ class Config:
     STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
     
     # Celery configuration
-    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://10.0.0.4:6379/0')
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://10.0.0.4:6379/0')
     
     ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY') or generate_encryption_key()
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@192.46.222.246:5432/{Config.DB_NAME}'
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@10.0.0.5:5432/{Config.DB_NAME}'
         
        # Development-specific CORS (more permissive)
     CORS_ORIGINS = [
@@ -80,7 +79,7 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('PROD_DATABASE_URL') or \
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@192.46.222.246:5432/{Config.DB_NAME}'
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@10.0.0.5:5432/{Config.DB_NAME}'
     VERIFY_TWILIO_SIGNATURE = True
     
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '').split(',') if os.environ.get('CORS_ORIGINS') else []

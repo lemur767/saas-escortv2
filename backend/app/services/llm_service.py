@@ -12,7 +12,7 @@ class LLMService:
     
     def __init__(self):
         """Initialize LLM service with configuration."""
-        self.llm_endpoint = current_app.config.get('LLM_ENDPOINT', 'http://localhost:11434')
+        self.llm_endpoint = current_app.config.get('LLM_ENDPOINT', 'http://10.0.0.6:11434')
         self.model_name = current_app.config.get('LLM_MODEL', 'dolphin3')
         self.timeout = current_app.config.get('LLM_TIMEOUT', 30)
         self.max_tokens = current_app.config.get('LLM_MAX_TOKENS', 150)
@@ -88,22 +88,22 @@ class LLMService:
         # Build the prompt
         
         prompt = f"""You are {profile.name}, An escort.  Respond concisely, flirty and seductive.  Use 1 Emoji.  If the key word "rates?" is in the text use 
-IMPORTANT RULES:
-1. Keep responses brief (1-3 sentences max)
-2. Match the texting style shown in examples
-3. NEVER mention explicit services or prices
-4. Don't reveal you're an AI
-5. Be friendly but professional
-6. If asked about sensitive topics, be vague or redirect
+                            IMPORTANT RULES:
+                            1. Keep responses brief (1-3 sentences max)
+                            2. Match the texting style shown in examples
+                            3. NEVER mention explicit services or prices
+                            4. Don't reveal you're an AI
+                            5. Be friendly but professional
+                            6. If asked about sensitive topics, be vague or redirect
 
-PROFILE INFO:
-- Name: {profile.name}
-- Description: {profile.description or 'Not provided'}
+                            PROFILE INFO:
+                            - Name: {profile.name}
+                            - Description: {profile.description or 'Not provided'}
 
-CLIENT INFO:
-- Phone: {sender_number}
-- Name: {client_name}
-"""
+                            CLIENT INFO:
+                            - Phone: {sender_number}
+                            - Name: {client_name}
+                            """
 
         # Add client notes if available
         if client and client.notes:

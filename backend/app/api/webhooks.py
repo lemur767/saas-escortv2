@@ -4,7 +4,7 @@ from app.models.user import User
 from app.models.profile import Profile
 from app.utils.twilio_helpers import validate_twilio_signature
 from app.services.message_handler import handle_incoming_message
-from app.extensions import task_queue, db
+from app.extensions import db
 from app.models.twilio_usage import TwilioUsage
 
 webhooks_bp = Blueprint('webhooks', __name__)

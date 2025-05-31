@@ -3,18 +3,17 @@ from datetime import datetime
 
 class ProfileClient(db.Model):
     __tablename__ = 'profile_clients'
-    __table_args__ = {'extend_existing': True}
     
-    id = db.Column(db.Integer, primary_key=True)
-    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), primary_key=True)
     notes = db.Column(db.Text)
     last_contact = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # The relationships are defined in Profile and Client models
-    # with backrefs pointing here
+    # Relationships
+    profile = db.relationship('Profile', back_populates='profile_clients')
+    client = db.relationship('Client', back_populates='profile_clients')
     
     __table_args__ = (
         db.UniqueConstraint('profile_id', 'client_id', name='uix_profile_client'),

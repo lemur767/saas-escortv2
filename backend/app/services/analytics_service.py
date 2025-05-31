@@ -2,11 +2,10 @@
 Analytics Service for tracking usage, performance, and business metrics.
 """
 
-from datetime import datetime, timedelta, date
-from typing import Dict, List, Optional, Tuple
-from sqlalchemy import func, and_, or_
+from datetime import timedelta, date
+from typing import Dict
 from flask import current_app
-import json
+
 
 from app.extensions import db
 
@@ -22,7 +21,6 @@ class AnalyticsService:
         from app.models.profile import Profile
         from app.models.message import Message
         from app.models.billing import Subscription
-        from app.models.client import Client
         from app.models.flagged_message import FlaggedMessage
         
         user = User.query.get(user_id)

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configure axios defaults
-axios.defaults.baseURL = "http://localhost:5000/";
+axios.defaults.baseURL = "http://10.0.0.5:5000/";
 
 // Add a request interceptor to include the token
 axios.interceptors.request.use(

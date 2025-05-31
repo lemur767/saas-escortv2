@@ -15,14 +15,8 @@ class Client(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Direct relationship to ProfileClient for more control
-    profile_client = db.relationship(
-        'ProfileClient',
-        foreign_keys='ProfileClient.client_id',
-        backref=db.backref('client', lazy='joined'),
-        lazy='dynamic',
-        cascade='all, delete-orphan'
-    )
+    profile_clients = db.relationship('ProfileClient', back_populates='client')
+    profiles = db.relationship('Profile', secondary='profile_clients', viewonly=True)
     
     def to_dict(self):
         return {

@@ -25,21 +25,10 @@ class Profile(db.Model):
     messages = db.relationship('Message', back_populates='profile', lazy='dynamic')
     
     # Define the clients relationship correctly
-    clients = db.relationship(
-        'Client',
-        secondary='profile_clients',
-        backref=db.backref('profiles', lazy='dynamic'),
-        lazy='dynamic'
-    )
-    
-    # Direct relationship to ProfileClient for more control
-    profile_clients = db.relationship(
-        'ProfileClient',
-        foreign_keys='ProfileClient.profile_id',
-        backref=db.backref('profile', lazy='joined'),
-        lazy='dynamic',
-        cascade='all, delete-orphan'
-    )
+    profile_clients = db.relationship('ProfileClient', back_populates='profile')
+    clients = db.relationship('Client', secondary='profile_clients', viewonly=True)
+
+  
     
     # Other relationships
     text_examples = db.relationship('TextExample', back_populates='profile', lazy='dynamic')

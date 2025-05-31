@@ -17,7 +17,7 @@ auth_bp = Blueprint('auth', __name__)
 def after_request(response):
     origin = request.headers.get('Origin')
     
-    if origin and origin in current_app.config.get('CORS_ORIGINS', []):
+    if origin and origin in current_app.config.get('CORS_ORIGINS', ['http://localhost:5173']):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Headers'] = (

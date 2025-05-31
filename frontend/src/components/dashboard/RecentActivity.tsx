@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Custom hook for managing recent activities with real-time updates
-export const useRecentActivities = (profileId, options = {}) => {
+export const useRecentActivities = (profileId: unknown, options = {}) => {
   const {
     limit = 20,
     autoRefresh = true,

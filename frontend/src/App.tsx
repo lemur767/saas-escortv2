@@ -16,7 +16,7 @@ import Analytics from './pages/Analytics'
 import ForgotPassword from './pages/ForgotPassword'
 
 // Components
-import ProtectedRoute from './components/common/ProtectedRoute'
+//import ProtectedRoute from './components/common/ProtectedRoute'
 import MainLayout from './components/common/MainLayout'
 
 const App = () => {
@@ -32,7 +32,7 @@ const App = () => {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               
               {/* Protected routes with layout */}
-              <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+              <Route element={<MainLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/profiles/:profileId" element={<ProfileDetail />} />
                 <Route path="/conversations/:profileId/:clientPhone" element={<ConversationView />} />
