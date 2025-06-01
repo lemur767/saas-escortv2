@@ -9,8 +9,8 @@ load_dotenv()
 def generate_encryption_key():
     return Fernet.generate_key().decode()
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard-to-guess-string'
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -33,9 +33,9 @@ class Config:
     
     TWILIO_SET_TRIAL_LIMITS = os.environ.get('TWILIO_SET_TRIAL_LIMITS', 'True') == 'True'
     
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173').split(',')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://assitext.ca','https://assitext.ca').split(',')
     
-    BASE_URL = os.environ.get('BASE_URL', 'http://192.46.222.246/')
+    BASE_URL = os.environ.get('BASE_URL', 'https://assitext.ca/')
     
     SMS_RATE = float(os.environ.get('SMS_RATE', '0.0075'))  # Cost per SMS
     VOICE_RATE = float(os.environ.get('VOICE_RATE', '0.015'))  # Cost per minute
@@ -60,14 +60,14 @@ class Config:
     STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
     
     # Celery configuration
-    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://10.0.0.4:6379/0')
-    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://10.0.0.4:6379/0')
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND')
     
     ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY') or generate_encryption_key()
 class DevelopmentConfig(Config):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@10.0.0.5:5432/{Config.DB_NAME}'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL_DEV') or \
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:5432/{Config.DB_NAME}'
         
        # Development-specific CORS (more permissive)
     CORS_ORIGINS = [
@@ -78,8 +78,8 @@ class DevelopmentConfig(Config):
     ]
 
 class ProductionConfig(Config):
-    SQLALCHEMY_DATABASE_URI = os.environ.get('PROD_DATABASE_URL') or \
-        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@10.0.0.5:5432/{Config.DB_NAME}'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        f'postgresql://{Config.DB_USER}:{Config.DB_PASS}@localhost:5432/{Config.DB_NAME}'
     VERIFY_TWILIO_SIGNATURE = True
     
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '').split(',') if os.environ.get('CORS_ORIGINS') else []

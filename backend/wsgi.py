@@ -9,7 +9,7 @@ def create_application():
     """Create Flask application with proper error handling"""
     try:
         # Get config from environment variable or default to development
-        config_name = os.environ.get('FLASK_CONFIG', 'development')
+        config_name = os.environ.get('FLASK_CONFIG', 'production')
         print(f"Creating Flask app with config: {config_name}")
         
         # Create Flask application
